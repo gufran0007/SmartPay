@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload CSV | Smart Pay</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.23/dist/full.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white border-b shadow-sm">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <a href="/dashboard" class="flex items-center gap-2 text-gray-600 hover:text-blue-600">
+                <i class="ri-arrow-left-line"></i> Back to Dashboard
+            </a>
+            <h1 class="font-bold text-gray-900">Upload CSV Data</h1>
+            <a href="/customers" class="btn btn-sm btn-outline gap-1">
+                <i class="ri-user-line"></i> Customers
+            </a>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-6 py-12">
+        <div class="max-w-2xl mx-auto">
+            {% if request.query_params.get('error') %}
+            <div class="alert alert-error mb-6">
+                <i class="ri-error-warning-line"></i>
+                <span>{{ request.query_params.get('error') }}</span>
+            </div>
+            {% endif %}
+
+            {% if request.query_params.get('success') %}
+            <div class="alert alert-success mb-6">
+                <i class="ri-check-line"></i>
+                <span>{{ request.query_params.get('success') }}</span>
+            </div>
+            {% endif %}
+
+            <div class="bg-white rounded-2xl shadow-sm p-8">
+                <div class="text-center mb-8">
+                    <div class="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="ri-database-2-line text-4xl text-teal-600"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold text-gray-900">Upload Customer Data</h1>
+                    <p class="text-gray-500 mt-2">Import payment history from CSV to enable AI predictions</p>
+                </div>
+
+                <form action="/upload-csv" method="post" enctype="multipart/form-data">
+                    <div class="border-2 border-dashed border-teal-300 rounded-2xl p-8 text-center hover:border-teal-400 hover:bg-teal-50/30 transition cursor-pointer" onclick="document.getElementById('csvInput').click()">
+                        <i class="ri-file-excel-2-line text-5xl text-teal-600 mb-4"></i>
+                        <p class="text-lg text-gray-600 mb-2">Click to upload CSV file</p>
+                        <p class="text-sm text-gray-500 mb-4">or drag and drop</p>
+                        <input type="file" name="file" id="csvInput" accept=".csv" class="hidden" required onchange="showFileName(this)">
+                        <span id="fileName" class="text-sm text-teal-600 font-medium"></span>
+                    </div>
+
+                    <div class="mt-6">
+                        <button type="submit" class="btn btn-primary w-full gap-2">
+                            <i class="ri-upload-cloud-line"></i> Upload & Process
+                        </button>
+                    </div>
+                </form>
+
+                <div class="mt-8 pt-6 border-t">
+                    <h3 class="font-semibold text-gray-900 mb-3">Expected CSV Format</h3>
+                    <div class="bg-gray-50 rounded-xl p-4 overflow-x-auto">
+                        <pre class="text-sm text-gray-600">customer_name,amount,due_date,payment_status,days_late
+Acme Corp,5000.00,2024-01-15,paid,0
+Beta Ltd,7500.00,2024-01-20,late,5
+Gamma Inc,3200.00,2024-02-01,unpaid,</pre>
+                    </div>
+                    
+                    <div class="mt-4 text-sm text-gray-500">
+                        <p class="font-medium text-gray-700 mb-2">Supported columns:</p>
+                        <ul class="list-disc ml-5 space-y-1">
+                            <li><code class="bg-gray-100 px-1 rounded">customer_name</code> - Customer identifier</li>
+                            <li><code class="bg-gray-100 px-1 rounded">amount</code> - Invoice amount</li>
+                            <li><code class="bg-gray-100 px-1 rounded">payment_status</code> - paid/late/unpaid</li>
+                            <li><code class="bg-gray-100 px-1 rounded">late_payment</code> - 0 or 1</li>
+                            <li><code class="bg-gray-100 px-1 rounded">days_late</code> - Number of days overdue</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 text-center">
+                <a href="/csv-status" class="text-blue-600 hover:underline text-sm">
+                    <i class="ri-information-line"></i> View current data status
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function showFileName(input) {
+            const fileName = document.getElementById('fileName');
+            if (input.files.length > 0) {
+                fileName.textContent = '📄 ' + input.files[0].name;
+            }
+        }
+    </script>
+</body>
+</html>

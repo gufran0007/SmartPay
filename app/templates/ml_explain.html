@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prediction Explained | Smart Pay</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.23/dist/full.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <a href="/view-invoice/{{ invoice.id }}" class="flex items-center gap-2 hover:opacity-80">
+                <i class="ri-arrow-left-line"></i> Back to Invoice
+            </a>
+            <h1 class="font-bold">🔍 Prediction Explained</h1>
+            <a href="/ml/analytics" class="btn btn-sm btn-outline border-white text-white">Analytics</a>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-6 py-8 max-w-3xl">
+        <!-- Invoice Summary -->
+        <div class="bg-white rounded-xl shadow p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4">Invoice #{{ invoice.invoice_number or invoice.id }}</h2>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div><span class="text-gray-500">Customer:</span> <strong>{{ invoice.customer_name }}</strong></div>
+                <div><span class="text-gray-500">Amount:</span> <strong>{{ invoice.amount }} {{ invoice.currency }}</strong></div>
+                <div><span class="text-gray-500">Due Date:</span> <strong>{{ invoice.due_date }}</strong></div>
+                <div>
+                    <span class="text-gray-500">Prediction:</span>
+                    {% if invoice.features and invoice.features.predicted_label == 1 %}
+                    <span class="badge badge-error">High Risk</span>
+                    {% else %}
+                    <span class="badge badge-success">Low Risk</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Risk Score -->
+        {% if risk_assessment %}
+        <div class="bg-white rounded-xl shadow p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4">📊 Risk Score</h2>
+            <div class="flex items-center gap-4">
+                <div class="radial-progress" 
+                     style="--value:{{ (risk_assessment.risk_score * 100)|int }}; --size:8rem; {% if risk_assessment.risk_score > 0.7 %}color: hsl(var(--er));{% elif risk_assessment.risk_score > 0.4 %}color: hsl(var(--wa));{% else %}color: hsl(var(--su));{% endif %}">
+                    {{ (risk_assessment.risk_score * 100)|int }}%
+                </div>
+                <div>
+                    <div class="text-2xl font-bold text-{% if risk_assessment.risk_level == 'High' %}red{% elif risk_assessment.risk_level == 'Medium' %}amber{% else %}green{% endif %}-600">
+                        {{ risk_assessment.risk_level }} Risk
+                    </div>
+                    <div class="text-gray-500">Confidence: {{ (risk_assessment.confidence * 100)|int }}%</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Why This Prediction -->
+        <div class="bg-white rounded-xl shadow p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4">🤔 Why This Prediction?</h2>
+            <div class="space-y-3">
+                {% for icon, text in factors %}
+                <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                    <span class="text-xl">{{ icon.split()[0] }}</span>
+                    <div>
+                        <div class="font-medium">{{ icon.split(None, 1)[1] if ' ' in icon else '' }}</div>
+                        <div class="text-sm text-gray-500">{{ text }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Customer History -->
+        {% if customer_data %}
+        <div class="bg-white rounded-xl shadow p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4">📜 Customer Payment History</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div class="bg-blue-50 rounded-lg p-4">
+                    <div class="text-2xl font-bold text-blue-600">{{ customer_data.total_invoices }}</div>
+                    <div class="text-xs text-gray-500">Total Invoices</div>
+                </div>
+                <div class="bg-green-50 rounded-lg p-4">
+                    <div class="text-2xl font-bold text-green-600">{{ customer_data.paid_on_time }}</div>
+                    <div class="text-xs text-gray-500">Paid On Time</div>
+                </div>
+                <div class="bg-red-50 rounded-lg p-4">
+                    <div class="text-2xl font-bold text-red-600">{{ customer_data.paid_late }}</div>
+                    <div class="text-xs text-gray-500">Paid Late</div>
+                </div>
+                <div class="bg-amber-50 rounded-lg p-4">
+                    <div class="text-2xl font-bold text-amber-600">{{ customer_data.avg_payment_delay|round(0)|int }}</div>
+                    <div class="text-xs text-gray-500">Avg Days Late</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Actions -->
+        <div class="flex gap-3">
+            <a href="/view-invoice/{{ invoice.id }}" class="btn btn-primary flex-1">
+                <i class="ri-file-text-line"></i> View Invoice
+            </a>
+            <a href="/send-reminder/{{ invoice.id }}" class="btn btn-outline flex-1">
+                <i class="ri-mail-line"></i> Send Reminder
+            </a>
+        </div>
+    </main>
+</body>
+</html>

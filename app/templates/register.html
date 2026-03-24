@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register | Smart Pay</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.23/dist/full.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-blue-600 text-white shadow">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <a href="/" class="flex items-center gap-2 text-xl font-bold">
+                <i class="ri-file-text-line"></i> Smart Pay
+            </a>
+            <div class="flex gap-2">
+                <a href="/dashboard" class="btn btn-sm btn-outline border-white text-white hover:bg-white hover:text-blue-600">
+                    <i class="ri-home-line"></i> Home
+                </a>
+                <a href="/login" class="btn btn-sm bg-white text-blue-600 hover:bg-blue-50">Login</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="min-h-[calc(100vh-60px)] flex items-center justify-center px-4 py-12">
+        <div class="bg-white shadow-xl rounded-2xl w-full max-w-md p-8">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="ri-user-add-line text-3xl text-green-600"></i>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-900">Create Account</h1>
+                <p class="text-gray-500 mt-2">Get started with Smart Pay</p>
+            </div>
+
+            {% if error %}
+            <div class="alert alert-error mb-6">
+                <i class="ri-error-warning-line"></i>
+                <span>{{ error }}</span>
+            </div>
+            {% endif %}
+
+            <form method="post" action="/register" class="space-y-4" id="registerForm">
+                <!-- Business Name -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">Business / Company Name</span>
+                    </label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                            <i class="ri-building-line"></i>
+                        </span>
+                        <input 
+                            type="text" 
+                            name="business_name" 
+                            required 
+                            minlength="2"
+                            maxlength="100"
+                            placeholder="Your company name" 
+                            value="{{ business_name|default('') }}"
+                            class="input input-bordered w-full pl-10"
+                        >
+                    </div>
+                </div>
+
+                <!-- Email -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">Email Address</span>
+                    </label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                            <i class="ri-mail-line"></i>
+                        </span>
+                        <input 
+                            type="email" 
+                            name="email" 
+                            required 
+                            placeholder="you@company.com" 
+                            value="{{ email|default('') }}"
+                            class="input input-bordered w-full pl-10"
+                        >
+                    </div>
+                </div>
+
+                <!-- Password -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">Password</span>
+                    </label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                            <i class="ri-lock-line"></i>
+                        </span>
+                        <input 
+                            type="password" 
+                            name="password" 
+                            required 
+                            minlength="8"
+                            id="passwordInput"
+                            placeholder="Create a strong password" 
+                            class="input input-bordered w-full pl-10 pr-10"
+                        >
+                        <button type="button" onclick="togglePassword()" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                            <i class="ri-eye-line" id="eyeIcon"></i>
+                        </button>
+                    </div>
+                    <!-- Password strength indicator -->
+                    <div class="mt-2">
+                        <div class="flex gap-1">
+                            <div class="h-1 flex-1 rounded bg-gray-200" id="str1"></div>
+                            <div class="h-1 flex-1 rounded bg-gray-200" id="str2"></div>
+                            <div class="h-1 flex-1 rounded bg-gray-200" id="str3"></div>
+                            <div class="h-1 flex-1 rounded bg-gray-200" id="str4"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1" id="strengthText">Min 8 chars, uppercase, lowercase, and number</p>
+                    </div>
+                </div>
+
+                <!-- Password Requirements Checklist -->
+                <div class="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
+                    <div class="flex items-center gap-2" id="req-length">
+                        <i class="ri-close-circle-line text-gray-300 text-base" id="ico-length"></i>
+                        <span class="text-gray-500">At least 8 characters</span>
+                    </div>
+                    <div class="flex items-center gap-2" id="req-upper">
+                        <i class="ri-close-circle-line text-gray-300 text-base" id="ico-upper"></i>
+                        <span class="text-gray-500">One uppercase letter</span>
+                    </div>
+                    <div class="flex items-center gap-2" id="req-lower">
+                        <i class="ri-close-circle-line text-gray-300 text-base" id="ico-lower"></i>
+                        <span class="text-gray-500">One lowercase letter</span>
+                    </div>
+                    <div class="flex items-center gap-2" id="req-number">
+                        <i class="ri-close-circle-line text-gray-300 text-base" id="ico-number"></i>
+                        <span class="text-gray-500">One number</span>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-full gap-2 mt-2">
+                    <i class="ri-user-add-line"></i> Create Account
+                </button>
+            </form>
+
+            <div class="divider my-6">OR</div>
+
+            <p class="text-center text-gray-600">
+                Already have an account? 
+                <a href="/login" class="text-blue-600 font-medium hover:underline">Sign in</a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        function togglePassword() {
+            var input = document.getElementById('passwordInput');
+            var icon = document.getElementById('eyeIcon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'ri-eye-off-line';
+            } else {
+                input.type = 'password';
+                icon.className = 'ri-eye-line';
+            }
+        }
+
+        document.getElementById('passwordInput').addEventListener('input', function() {
+            var pw = this.value;
+            var score = 0;
+
+            var hasLength = pw.length >= 8;
+            var hasUpper = /[A-Z]/.test(pw);
+            var hasLower = /[a-z]/.test(pw);
+            var hasNumber = /[0-9]/.test(pw);
+
+            if (hasLength) score++;
+            if (hasUpper) score++;
+            if (hasLower) score++;
+            if (hasNumber) score++;
+
+            // Update checklist icons
+            function setIcon(id, pass) {
+                var el = document.getElementById(id);
+                el.className = pass 
+                    ? 'ri-check-line text-green-500 text-base' 
+                    : 'ri-close-circle-line text-gray-300 text-base';
+            }
+            setIcon('ico-length', hasLength);
+            setIcon('ico-upper', hasUpper);
+            setIcon('ico-lower', hasLower);
+            setIcon('ico-number', hasNumber);
+
+            // Update strength bars
+            var colors = ['bg-gray-200', 'bg-red-400', 'bg-amber-400', 'bg-blue-400', 'bg-green-500'];
+            var labels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
+            for (var i = 1; i <= 4; i++) {
+                var bar = document.getElementById('str' + i);
+                bar.className = 'h-1 flex-1 rounded ' + (i <= score ? colors[score] : 'bg-gray-200');
+            }
+            document.getElementById('strengthText').textContent = pw.length > 0 ? labels[score] : 'Min 8 chars, uppercase, lowercase, and number';
+        });
+    </script>
+</body>
+</html>

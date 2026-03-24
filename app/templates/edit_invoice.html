@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Invoice | Smart Pay</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.23/dist/full.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-gradient-to-r from-blue-600 to-teal-600 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex justify-between items-center">
+                <a href="/dashboard" class="flex items-center gap-2">
+                    <i class="ri-file-invoice-dollar-line text-2xl"></i>
+                    <span class="text-xl font-bold">Smart Pay</span>
+                </a>
+                <a href="/view-invoice/{{ inv.id }}" class="btn btn-sm btn-outline border-white text-white hover:bg-white hover:text-blue-600">
+                    <i class="ri-arrow-left-line"></i> Back to Invoice
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-6 py-8 max-w-3xl">
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-gray-900">Edit Invoice #{{ inv.invoice_number or inv.id }}</h1>
+            <p class="text-gray-500">Update invoice details below</p>
+        </div>
+
+        {% if errors %}
+        <div class="alert alert-error mb-6">
+            <div>
+                <i class="ri-error-warning-line text-xl"></i>
+                <div>
+                    <h3 class="font-bold">Please fix the following errors:</h3>
+                    <ul class="text-sm mt-1">
+                        {% for field, msg in errors.items() %}
+                        <li>{{ field }}: {{ msg }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <form method="post" action="/update-invoice/{{ inv.id }}" class="bg-white rounded-2xl shadow-sm p-8" id="editForm" novalidate>
+
+            <!-- Invoice Number -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="form-control">
+                    <label class="label"><span class="label-text font-medium">Invoice Number</span></label>
+                    <input type="text" name="invoice_number" value="{{ inv.invoice_number }}"
+                           pattern="^[A-Za-z0-9\-_/]+$" maxlength="50"
+                           class="input input-bordered {% if errors and errors.invoice_number %}input-error{% endif %}"
+                           placeholder="e.g. INV-2024-001">
+                    <label class="label"><span class="label-text-alt text-gray-400">Letters, numbers, hyphens only</span></label>
+                </div>
+
+                <div class="form-control">
+                    <label class="label"><span class="label-text font-medium">Currency</span></label>
+                    <select name="currency" class="select select-bordered {% if errors and errors.currency %}select-error{% endif %}">
+                        <option value="">Select currency</option>
+                        {% for c in ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR', 'PKR', 'AED'] %}
+                        <option value="{{ c }}" {% if inv.currency == c %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Amount & Dates -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="form-control">
+                    <label class="label"><span class="label-text font-medium">Amount</span></label>
+                    <input type="text" name="amount" value="{{ inv.amount }}"
+                           id="amountInput"
+                           class="input input-bordered {% if errors and errors.amount %}input-error{% endif %}"
+                           placeholder="e.g. 5000.00">
+                    {% if errors and errors.amount %}
+                    <label class="label"><span class="label-text-alt text-error">{{ errors.amount }}</span></label>
+                    {% else %}
+                    <label class="label"><span class="label-text-alt text-gray-400">Numbers only</span></label>
+                    {% endif %}
+                </div>
+
+                <div class="form-control">
+                    <label class="label"><span class="label-text font-medium">Invoice Date</span></label>
+                    <input type="date" name="date" value="{{ inv.date }}"
+                           pattern="^\d{4}-\d{2}-\d{2}$|^\d{2}[/\-\.]\d{2}[/\-\.]\d{4}$"
+                           class="input input-bordered {% if errors and errors.date %}input-error{% endif %}"
+                           placeholder="YYYY-MM-DD">
+                    {% if errors and errors.date %}
+                    <label class="label"><span class="label-text-alt text-error">{{ errors.date }}</span></label>
+                    {% endif %}
+                </div>
+
+                <div class="form-control">
+                    <label class="label"><span class="label-text font-medium">Due Date</span></label>
+                    <input type="date" name="due_date" value="{{ inv.due_date }}"
+                           pattern="^\d{4}-\d{2}-\d{2}$|^\d{2}[/\-\.]\d{2}[/\-\.]\d{4}$"
+                           class="input input-bordered {% if errors and errors.due_date %}input-error{% endif %}"
+                           placeholder="YYYY-MM-DD">
+                    {% if errors and errors.due_date %}
+                    <label class="label"><span class="label-text-alt text-error">{{ errors.due_date }}</span></label>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="divider">Customer Details</div>
+
+            <!-- Customer Info -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="form-control">
+                    <label class="label"><span class="label-text font-medium">Customer Name</span></label>
+                    <input type="text" name="customer_name" value="{{ inv.customer_name }}"
+                           minlength="2" maxlength="200"
+                           class="input input-bordered {% if errors and errors.customer_name %}input-error{% endif %}"
+                           placeholder="Full name">
+                    {% if errors and errors.customer_name %}
+                    <label class="label"><span class="label-text-alt text-error">{{ errors.customer_name }}</span></label>
+                    {% endif %}
+                </div>
+
+                <div class="form-control">
+                    <label class="label"><span class="label-text font-medium">Customer Email</span></label>
+                    <input type="email" name="customer_email" value="{{ inv.customer_email }}"
+                           id="emailInput"
+                           class="input input-bordered {% if errors and errors.customer_email %}input-error{% endif %}"
+                           placeholder="customer@company.com">
+                    {% if errors and errors.customer_email %}
+                    <label class="label"><span class="label-text-alt text-error">{{ errors.customer_email }}</span></label>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-control mb-6">
+                <label class="label"><span class="label-text font-medium">Customer Address</span></label>
+                <input type="text" name="customer_address" value="{{ inv.customer_address }}"
+                       maxlength="500"
+                       class="input input-bordered {% if errors and errors.customer_address %}input-error{% endif %}"
+                       placeholder="Street address, city, country">
+            </div>
+
+            <div class="divider">Company Details</div>
+
+            <!-- Company Info -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div class="form-control">
+                    <label class="label"><span class="label-text font-medium">Company Name</span></label>
+                    <input type="text" name="company_name" value="{{ inv.company_name }}"
+                           minlength="2" maxlength="200"
+                           class="input input-bordered {% if errors and errors.company_name %}input-error{% endif %}"
+                           placeholder="Company name">
+                </div>
+
+                <div class="form-control">
+                    <label class="label"><span class="label-text font-medium">VAT / Tax ID</span></label>
+                    <input type="text" name="vat_id" value="{{ inv.vat_id }}"
+                           pattern="^[A-Z0-9\-]{5,20}$" maxlength="20"
+                           class="input input-bordered {% if errors and errors.vat_id %}input-error{% endif %}"
+                           placeholder="e.g. GB123456789">
+                    {% if errors and errors.vat_id %}
+                    <label class="label"><span class="label-text-alt text-error">{{ errors.vat_id }}</span></label>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex gap-3">
+                <button type="submit" class="btn btn-primary gap-2" id="submitBtn">
+                    <i class="ri-save-line"></i> Save Changes
+                </button>
+                <a href="/view-invoice/{{ inv.id }}" class="btn btn-outline gap-2">
+                    <i class="ri-close-line"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </main>
+
+    <script>
+    // Client-side validation before submit
+    document.getElementById('editForm').addEventListener('submit', function(e) {
+        var errors = [];
+
+        // Amount validation
+        var amt = document.getElementById('amountInput').value.replace(/[,$€£]/g, '').trim();
+        if (amt && (isNaN(parseFloat(amt)) || parseFloat(amt) < 0)) {
+            errors.push('Amount must be a valid positive number');
+            document.getElementById('amountInput').classList.add('input-error');
+        }
+
+        // Email validation
+        var email = document.getElementById('emailInput').value.trim();
+        if (email && email !== 'N/A' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            errors.push('Invalid email format');
+            document.getElementById('emailInput').classList.add('input-error');
+        }
+
+        if (errors.length > 0) {
+            e.preventDefault();
+            alert('Validation errors:\n\n' + errors.join('\n'));
+        }
+    });
+
+    // Remove error styling on input
+    document.querySelectorAll('.input-error').forEach(function(el) {
+        el.addEventListener('input', function() { this.classList.remove('input-error'); });
+    });
+    </script>
+</body>
+</html>

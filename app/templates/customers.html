@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customers | Smart Pay</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.23/dist/full.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-gradient-to-r from-blue-600 to-teal-600 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <a href="/dashboard" class="flex items-center gap-2 hover:opacity-80">
+                <i class="ri-arrow-left-line"></i> Dashboard
+            </a>
+            <h1 class="font-bold">Customer Management</h1>
+            <a href="/upload-csv" class="btn btn-sm bg-white text-blue-600 hover:bg-blue-50 gap-1">
+                <i class="ri-upload-cloud-line"></i> Upload CSV
+            </a>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-6 py-8">
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Customer Database</h1>
+                <p class="text-gray-600">
+                    {{ total_customers }} customers total • {{ customers_with_csv }} with payment history
+                </p>
+            </div>
+            <input type="text" id="searchInput" placeholder="Search customers..." class="input input-bordered input-sm w-64">
+        </div>
+
+        {% if customers %}
+        <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="table w-full" id="customerTable">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th>Customer</th>
+                            <th>Reliability Score</th>
+                            <th>Risk Level</th>
+                            <th>Payment Stats</th>
+                            <th>Total Amount</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in customers %}
+                        <tr class="hover:bg-gray-50">
+                            <td>
+                                <div class="font-medium">{{ c.name[:25] }}{% if c.name|length > 25 %}...{% endif %}</div>
+                                {% if c.company %}
+                                <div class="text-xs text-gray-500">{{ c.company[:20] }}</div>
+                                {% endif %}
+                                {% if c.email %}
+                                <div class="text-xs text-blue-600">{{ c.email[:25] }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-24 bg-gray-200 rounded-full h-2.5">
+                                        {% set pct = (c.payment_reliability * 100)|round %}
+                                        <div class="h-2.5 rounded-full {% if pct >= 80 %}bg-green-500{% elif pct >= 60 %}bg-yellow-500{% else %}bg-red-500{% endif %}" style="width: {{ pct }}%"></div>
+                                    </div>
+                                    <span class="text-sm font-medium">{{ c.reliability_percent }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge {% if c.risk_level == 'Low' %}badge-success{% elif c.risk_level == 'Medium' %}badge-warning{% else %}badge-error{% endif %}">
+                                    {{ c.risk_level }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="text-sm">
+                                    {% if c.has_csv_data %}
+                                    <span class="text-green-600">✓ {{ c.paid_on_time }} on time</span>
+                                    {% if c.paid_late > 0 %}
+                                    <span class="text-amber-600 ml-2">⚠ {{ c.paid_late }} late</span>
+                                    {% endif %}
+                                    <div class="text-xs text-gray-500">Avg delay: {{ c.avg_payment_delay|round(1) }} days</div>
+                                    {% else %}
+                                    <span class="text-gray-400">No history data</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="font-medium">
+                                    {% if c.has_csv_data %}
+                                    ${{ "{:,.2f}".format(c.total_amount) }}
+                                    {% endif %}
+                                </div>
+                                {% if c.total_invoices_db > 0 %}
+                                <div class="text-xs text-gray-500">{{ c.total_invoices_db }} invoices in DB</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="/customer-insights/{{ c.name|urlencode }}" class="btn btn-xs btn-outline btn-info gap-1">
+                                    <i class="ri-eye-line"></i> Details
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+            <div class="bg-white rounded-xl p-4 shadow-sm">
+                <div class="text-2xl font-bold text-blue-600">{{ total_customers }}</div>
+                <div class="text-sm text-gray-500">Total Customers</div>
+            </div>
+            <div class="bg-white rounded-xl p-4 shadow-sm">
+                <div class="text-2xl font-bold text-green-600">{{ customers_with_csv }}</div>
+                <div class="text-sm text-gray-500">With Payment History</div>
+            </div>
+            <div class="bg-white rounded-xl p-4 shadow-sm">
+                {% set high_risk = customers|selectattr('risk_level', 'equalto', 'High')|list|length %}
+                <div class="text-2xl font-bold text-red-600">{{ high_risk }}</div>
+                <div class="text-sm text-gray-500">High Risk</div>
+            </div>
+            <div class="bg-white rounded-xl p-4 shadow-sm">
+                {% set low_risk = customers|selectattr('risk_level', 'equalto', 'Low')|list|length %}
+                <div class="text-2xl font-bold text-green-600">{{ low_risk }}</div>
+                <div class="text-sm text-gray-500">Low Risk</div>
+            </div>
+        </div>
+        {% else %}
+        <div class="bg-white rounded-2xl shadow-sm p-12 text-center">
+            <i class="ri-user-search-line text-6xl text-gray-300 mb-4"></i>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">No Customers Yet</h3>
+            <p class="text-gray-500 mb-6">Upload invoices or import CSV data to see customers here</p>
+            <div class="flex gap-3 justify-center">
+                <a href="/upload" class="btn btn-primary gap-1">
+                    <i class="ri-upload-cloud-line"></i> Upload Invoice
+                </a>
+                <a href="/upload-csv" class="btn btn-outline gap-1">
+                    <i class="ri-database-line"></i> Import CSV
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </main>
+
+    <script>
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const term = e.target.value.toLowerCase();
+            document.querySelectorAll('#customerTable tbody tr').forEach(row => {
+                row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+            });
+        });
+    </script>
+</body>
+</html>

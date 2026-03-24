@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Data Status | Smart Pay</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.23/dist/full.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white border-b shadow-sm">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <a href="/dashboard" class="flex items-center gap-2 text-gray-600 hover:text-blue-600">
+                <i class="ri-arrow-left-line"></i> Back to Dashboard
+            </a>
+            <h1 class="font-bold text-gray-900">CSV Data Status</h1>
+            <a href="/upload-csv" class="btn btn-sm btn-primary gap-1">
+                <i class="ri-upload-cloud-line"></i> Upload CSV
+            </a>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-6 py-12">
+        <div class="max-w-2xl mx-auto">
+            <div class="bg-white rounded-2xl shadow-sm p-8">
+                {% if has_data %}
+                <!-- Data Loaded -->
+                <div class="text-center mb-8">
+                    <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="ri-checkbox-circle-line text-4xl text-green-600"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold text-gray-900">Data Loaded Successfully</h1>
+                    <p class="text-gray-500 mt-2">Customer payment history is available for predictions</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mb-8">
+                    <div class="bg-blue-50 rounded-xl p-4 text-center">
+                        <div class="text-3xl font-bold text-blue-600">{{ customer_count }}</div>
+                        <div class="text-sm text-gray-600">Customers</div>
+                    </div>
+                    <div class="bg-teal-50 rounded-xl p-4 text-center">
+                        <div class="text-3xl font-bold text-teal-600">{{ record_count }}</div>
+                        <div class="text-sm text-gray-600">Records</div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 rounded-xl p-4 mb-6">
+                    <h3 class="font-semibold text-gray-900 mb-2">How it works:</h3>
+                    <ul class="space-y-2 text-sm text-gray-600">
+                        <li class="flex items-start gap-2">
+                            <i class="ri-check-line text-green-600 mt-0.5"></i>
+                            CSV files are loaded from <code class="bg-gray-200 px-1 rounded">app/data/</code> on startup
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i class="ri-check-line text-green-600 mt-0.5"></i>
+                            Uploaded CSVs are processed immediately
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i class="ri-check-line text-green-600 mt-0.5"></i>
+                            Customers are matched to invoices automatically
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i class="ri-check-line text-green-600 mt-0.5"></i>
+                            AI predictions use this history data
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="flex gap-3">
+                    <a href="/customers" class="btn btn-primary flex-1 gap-1">
+                        <i class="ri-user-line"></i> View Customers
+                    </a>
+                    <a href="/upload-csv" class="btn btn-outline flex-1 gap-1">
+                        <i class="ri-upload-cloud-line"></i> Upload More
+                    </a>
+                </div>
+
+                {% else %}
+                <!-- No Data -->
+                <div class="text-center mb-8">
+                    <div class="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="ri-alert-line text-4xl text-amber-600"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold text-gray-900">No CSV Data Found</h1>
+                    <p class="text-gray-500 mt-2">Upload customer payment history to enable AI predictions</p>
+                </div>
+
+                <div class="bg-gray-50 rounded-xl p-4 mb-6">
+                    <h3 class="font-semibold text-gray-900 mb-2">How to add data:</h3>
+                    <ol class="space-y-2 text-sm text-gray-600 list-decimal ml-4">
+                        <li>Upload a CSV file using the button below</li>
+                        <li>Or place CSV files in <code class="bg-gray-200 px-1 rounded">app/data/</code> directory</li>
+                        <li>Restart the server to load files from the data directory</li>
+                    </ol>
+                </div>
+
+                <a href="/upload-csv" class="btn btn-primary w-full gap-1">
+                    <i class="ri-upload-cloud-line"></i> Upload CSV File
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+</body>
+</html>

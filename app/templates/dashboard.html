@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if current_user %}Dashboard{% else %}Smart Pay | AI-Powered Invoice Management{% endif %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.23/dist/full.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .hero-gradient {
+            background: radial-gradient(ellipse at 10% 0%, #dbeafe 0%, transparent 50%),
+                        radial-gradient(ellipse at 90% 10%, #e9d5ff 0%, transparent 45%),
+                        linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+        }
+        .float { animation: float 6s ease-in-out infinite; }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .gradient-primary { background: linear-gradient(135deg, #3b82f6, #0d9488); }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- ═══════════ NAVIGATION — changes based on login state ═══════════ -->
+    <nav class="bg-gradient-to-r from-blue-600 to-teal-600 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex justify-between items-center">
+                <a href="/" class="flex items-center gap-2">
+                    <i class="ri-file-invoice-dollar-line text-2xl"></i>
+                    <span class="text-xl font-bold">Smart Pay</span>
+                </a>
+                <div class="flex items-center gap-2">
+                    {% if current_user %}
+                        <a href="/upload" class="btn btn-sm btn-outline border-white text-white hover:bg-white hover:text-blue-600">
+                            <i class="ri-upload-cloud-line"></i> Upload
+                        </a>
+                        <a href="/ml/analytics" class="btn btn-sm btn-outline border-white text-white hover:bg-white hover:text-blue-600">
+                            <i class="ri-brain-line"></i> ML Analytics
+                        </a>
+                        <a href="/customers" class="btn btn-sm btn-outline border-white text-white hover:bg-white hover:text-blue-600">
+                            <i class="ri-group-line"></i> Customers
+                        </a>
+                        <div class="hidden sm:flex items-center gap-2 ml-2 px-3 py-1 bg-white/10 rounded-full">
+                            <i class="ri-user-line text-sm"></i>
+                            <span class="text-sm">{{ current_user.email }}</span>
+                        </div>
+                        <a href="/logout" class="btn btn-sm bg-white/20 border-white/30 text-white hover:bg-white hover:text-red-600">
+                            <i class="ri-logout-box-r-line"></i> Logout
+                        </a>
+                    {% else %}
+                        <a href="/login" class="btn btn-sm btn-outline border-white text-white hover:bg-white hover:text-blue-600">
+                            <i class="ri-login-box-line"></i> Login
+                        </a>
+                        <a href="/register" class="btn btn-sm bg-white text-blue-600 hover:bg-blue-50 border-0">
+                            <i class="ri-user-add-line"></i> Register
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+
+{% if not current_user %}
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!--  GUEST VIEW — Landing page with services & benefits           -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+
+    <!-- Hero -->
+    <header class="hero-gradient">
+        <div class="container mx-auto px-6 py-20 lg:py-28">
+            <div class="grid lg:grid-cols-2 gap-12 items-center">
+                <div>
+                    <h1 class="text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-6">
+                        <span class="text-blue-600">AI-Powered</span> Invoice Management
+                    </h1>
+                    <p class="text-xl text-gray-600 mb-8 leading-relaxed">
+                        Extract invoice data automatically, predict payment behavior with machine learning, and manage your accounts receivable smarter than ever.
+                    </p>
+                    <div class="flex flex-wrap gap-4">
+                        <a href="/register" class="btn btn-primary btn-lg gap-2">
+                            <i class="ri-rocket-line"></i> Get Started Free
+                        </a>
+                        <a href="/login" class="btn btn-outline btn-lg gap-2">
+                            <i class="ri-login-box-line"></i> Login
+                        </a>
+                    </div>
+                    <div class="mt-10 flex items-center gap-8 text-sm text-gray-500">
+                        <div class="flex items-center gap-2"><i class="ri-check-line text-green-500"></i> Free to start</div>
+                        <div class="flex items-center gap-2"><i class="ri-check-line text-green-500"></i> No credit card</div>
+                        <div class="flex items-center gap-2"><i class="ri-check-line text-green-500"></i> Instant setup</div>
+                    </div>
+                </div>
+                <div class="float">
+                    <div class="bg-white rounded-2xl shadow-2xl p-6 border border-gray-100">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                                <i class="ri-file-text-line text-blue-600"></i> Invoice Dashboard
+                            </h3>
+                            <span class="badge badge-primary gap-1">
+                                <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span> Live
+                            </span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-blue-50 rounded-xl p-4">
+                                <div class="text-3xl font-bold text-blue-600">324</div>
+                                <div class="text-sm text-gray-600">Total Invoices</div>
+                            </div>
+                            <div class="bg-green-50 rounded-xl p-4">
+                                <div class="text-3xl font-bold text-green-600">$48.2K</div>
+                                <div class="text-sm text-gray-600">Outstanding</div>
+                            </div>
+                            <div class="bg-amber-50 rounded-xl p-4">
+                                <div class="text-3xl font-bold text-amber-600">87%</div>
+                                <div class="text-sm text-gray-600">ML Accuracy</div>
+                            </div>
+                            <div class="bg-purple-50 rounded-xl p-4">
+                                <div class="text-3xl font-bold text-purple-600">12</div>
+                                <div class="text-sm text-gray-600">At Risk</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Our Services -->
+    <section class="py-20 bg-white">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-bold text-gray-900 mb-4">Our Services</h2>
+                <p class="text-xl text-gray-600 max-w-2xl mx-auto">Powerful features to automate your invoice management workflow</p>
+            </div>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="bg-gray-50 rounded-2xl p-8 hover:shadow-lg transition">
+                    <div class="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
+                        <i class="ri-scan-line text-2xl text-blue-600"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">OCR Extraction</h3>
+                    <p class="text-gray-600">Upload PDF or image invoices and automatically extract customer details, amounts, dates, and more using PyMuPDF and Tesseract.</p>
+                </div>
+                <div class="bg-gray-50 rounded-2xl p-8 hover:shadow-lg transition">
+                    <div class="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center mb-6">
+                        <i class="ri-brain-line text-2xl text-green-600"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">ML Payment Prediction</h3>
+                    <p class="text-gray-600">Predict which invoices are likely to be paid late using trained Random Forest models with 17 engineered features.</p>
+                </div>
+                <div class="bg-gray-50 rounded-2xl p-8 hover:shadow-lg transition">
+                    <div class="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center mb-6">
+                        <i class="ri-user-search-line text-2xl text-purple-600"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">Customer Analytics</h3>
+                    <p class="text-gray-600">Track customer payment history, reliability scores, and risk assessments to make informed credit decisions.</p>
+                </div>
+                <div class="bg-gray-50 rounded-2xl p-8 hover:shadow-lg transition">
+                    <div class="w-14 h-14 bg-amber-100 rounded-xl flex items-center justify-center mb-6">
+                        <i class="ri-database-2-line text-2xl text-amber-600"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">CSV Data Import</h3>
+                    <p class="text-gray-600">Import historical payment data from CSV files to train models, analyze customer trends, and build risk profiles.</p>
+                </div>
+                <div class="bg-gray-50 rounded-2xl p-8 hover:shadow-lg transition">
+                    <div class="w-14 h-14 bg-teal-100 rounded-xl flex items-center justify-center mb-6">
+                        <i class="ri-dashboard-3-line text-2xl text-teal-600"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">Smart Dashboard</h3>
+                    <p class="text-gray-600">Clean, intuitive dashboard with charts to view all invoices, customers, predictions, and risk analysis at a glance.</p>
+                </div>
+                <div class="bg-gray-50 rounded-2xl p-8 hover:shadow-lg transition">
+                    <div class="w-14 h-14 bg-red-100 rounded-xl flex items-center justify-center mb-6">
+                        <i class="ri-mail-send-line text-2xl text-red-600"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">Smart Reminders</h3>
+                    <p class="text-gray-600">AI-generated reminder emails that adapt tone and urgency based on payment behavior and risk predictions.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="py-20 bg-gray-50">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-bold text-gray-900 mb-4">How It Works</h2>
+                <p class="text-xl text-gray-600">Four simple steps to smarter invoice management</p>
+            </div>
+            <div class="grid md:grid-cols-4 gap-8">
+                <div class="text-center">
+                    <div class="w-16 h-16 gradient-primary rounded-full flex items-center justify-center mx-auto mb-4 text-white text-2xl font-bold">1</div>
+                    <h3 class="font-bold text-gray-900 mb-2">Upload</h3>
+                    <p class="text-gray-600 text-sm">Upload PDF or image invoices</p>
+                </div>
+                <div class="text-center">
+                    <div class="w-16 h-16 gradient-primary rounded-full flex items-center justify-center mx-auto mb-4 text-white text-2xl font-bold">2</div>
+                    <h3 class="font-bold text-gray-900 mb-2">Extract</h3>
+                    <p class="text-gray-600 text-sm">AI extracts key invoice data</p>
+                </div>
+                <div class="text-center">
+                    <div class="w-16 h-16 gradient-primary rounded-full flex items-center justify-center mx-auto mb-4 text-white text-2xl font-bold">3</div>
+                    <h3 class="font-bold text-gray-900 mb-2">Analyze</h3>
+                    <p class="text-gray-600 text-sm">ML predicts payment behavior</p>
+                </div>
+                <div class="text-center">
+                    <div class="w-16 h-16 gradient-primary rounded-full flex items-center justify-center mx-auto mb-4 text-white text-2xl font-bold">4</div>
+                    <h3 class="font-bold text-gray-900 mb-2">Act</h3>
+                    <p class="text-gray-600 text-sm">Take action on insights</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="py-20 gradient-primary text-white">
+        <div class="container mx-auto px-6 text-center">
+            <h2 class="text-4xl font-bold mb-6">Ready to Get Started?</h2>
+            <p class="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
+                Register now and start managing your invoices smarter with AI.
+            </p>
+            <div class="flex flex-wrap gap-4 justify-center">
+                <a href="/register" class="btn btn-lg bg-white text-blue-600 hover:bg-blue-50 gap-2">
+                    <i class="ri-user-add-line"></i> Create Free Account
+                </a>
+                <a href="/login" class="btn btn-lg btn-outline border-white text-white hover:bg-white hover:text-blue-600 gap-2">
+                    <i class="ri-login-box-line"></i> Login
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Guest Footer -->
+    <footer class="bg-gray-900 text-white py-8">
+        <div class="container mx-auto px-6 text-center text-gray-500 text-sm">
+            © 2025 Smart Pay — Built with FastAPI and Python by Ghufran Aslam
+        </div>
+    </footer>
+
+
+{% else %}
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!--  LOGGED IN VIEW — Full working dashboard                      -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+
+    <main class="container mx-auto px-6 py-8">
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">Dashboard</h1>
+            <p class="text-gray-500">AI-powered invoice management and payment prediction</p>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-2xl shadow-sm p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Total Invoices</p>
+                        <p class="text-3xl font-bold text-gray-900">{{ total_invoices }}</p>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        <i class="ri-file-list-3-line text-blue-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Total Customers</p>
+                        <p class="text-3xl font-bold text-gray-900">{{ total_customers }}</p>
+                    </div>
+                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                        <i class="ri-group-line text-green-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">High Risk</p>
+                        <p class="text-3xl font-bold text-red-600">{{ high_risk_count }}</p>
+                    </div>
+                    <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                        <i class="ri-alert-line text-red-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Avg Reliability</p>
+                        <p class="text-3xl font-bold text-purple-600">{{ avg_reliability }}%</p>
+                    </div>
+                    <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                        <i class="ri-percent-line text-purple-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div class="bg-white rounded-2xl shadow-sm p-6">
+                <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <i class="ri-pie-chart-line text-blue-600"></i> Customer Risk Distribution
+                </h2>
+                <div class="h-64">
+                    <canvas id="riskPieChart"></canvas>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm p-6">
+                <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <i class="ri-bar-chart-line text-green-600"></i> Payment Behavior
+                </h2>
+                <div class="h-64">
+                    <canvas id="paymentBarChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions & High Risk -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white rounded-2xl shadow-sm p-6">
+                <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <i class="ri-flashlight-line text-amber-500"></i> Quick Actions
+                </h2>
+                <div class="space-y-3">
+                    <a href="/upload" class="btn btn-primary w-full gap-2">
+                        <i class="ri-upload-cloud-line"></i> Upload Invoice
+                    </a>
+                    <a href="/upload-csv" class="btn btn-outline w-full gap-2">
+                        <i class="ri-file-excel-line"></i> Upload CSV Data
+                    </a>
+                    <a href="/ml/train" class="btn btn-outline w-full gap-2">
+                        <i class="ri-brain-line"></i> Train ML Model
+                    </a>
+                    <a href="/view-data" class="btn btn-outline w-full gap-2">
+                        <i class="ri-table-line"></i> View All Invoices
+                    </a>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm p-6 lg:col-span-2">
+                <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <i class="ri-alert-line text-red-500"></i> High Risk Customers
+                </h2>
+                {% if high_risk_customers %}
+                <div class="overflow-x-auto">
+                    <table class="table table-sm">
+                        <thead><tr><th>Customer</th><th>Invoices</th><th>Late</th><th>Reliability</th><th></th></tr></thead>
+                        <tbody>
+                            {% for c in high_risk_customers[:5] %}
+                            <tr>
+                                <td class="font-medium">{{ c.name[:20] }}</td>
+                                <td>{{ c.total_invoices }}</td>
+                                <td class="text-red-600">{{ c.paid_late }}</td>
+                                <td>
+                                    <progress class="progress progress-error w-16" value="{{ (c.payment_reliability * 100)|int }}" max="100"></progress>
+                                    <span class="text-xs ml-1">{{ (c.payment_reliability * 100)|int }}%</span>
+                                </td>
+                                <td><a href="/customer-insights/{{ c.name }}" class="btn btn-xs btn-ghost"><i class="ri-eye-line"></i></a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <a href="/customers" class="btn btn-sm btn-outline mt-4 w-full">View All Customers</a>
+                {% else %}
+                <div class="text-center py-8 text-gray-500">
+                    <i class="ri-shield-check-line text-4xl text-green-500 mb-2"></i>
+                    <p>No high risk customers!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Recent Invoices -->
+        <div class="bg-white rounded-2xl shadow-sm p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <i class="ri-time-line text-blue-500"></i> Recent Invoices
+                </h2>
+                <a href="/view-data" class="btn btn-sm btn-outline">View All</a>
+            </div>
+            {% if recent_invoices %}
+            <div class="overflow-x-auto">
+                <table class="table">
+                    <thead><tr><th>Invoice #</th><th>Customer</th><th>Amount</th><th>Due Date</th><th>Risk</th><th></th></tr></thead>
+                    <tbody>
+                        {% for inv in recent_invoices %}
+                        <tr>
+                            <td class="font-medium">#{{ inv.invoice_number or inv.id }}</td>
+                            <td>{{ inv.customer_name if inv.customer_name and inv.customer_name != 'N/A' else '—' }}</td>
+                            <td>{{ inv.amount }} {{ inv.currency }}</td>
+                            <td>{{ inv.due_date if inv.due_date and inv.due_date != 'N/A' else '—' }}</td>
+                            <td>
+                                {% if inv.features and inv.features.predicted_label == 1 %}
+                                <span class="badge badge-error badge-sm">High</span>
+                                {% elif inv.features and inv.features.predicted_label == 0 %}
+                                <span class="badge badge-success badge-sm">Low</span>
+                                {% else %}
+                                <span class="badge badge-ghost badge-sm">—</span>
+                                {% endif %}
+                            </td>
+                            <td><a href="/view-invoice/{{ inv.id }}" class="btn btn-xs btn-ghost"><i class="ri-eye-line"></i></a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-12 text-gray-500">
+                <i class="ri-inbox-line text-5xl mb-4"></i>
+                <p>No invoices yet</p>
+                <a href="/upload" class="btn btn-primary mt-4">Upload Your First Invoice</a>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <script>
+        var lowRisk = {{ low_risk_count | default(0) }};
+        var mediumRisk = {{ medium_risk_count | default(0) }};
+        var highRisk = {{ high_risk_count | default(0) }};
+        var onTime = {{ paid_on_time | default(0) }};
+        var late = {{ paid_late | default(0) }};
+        var unpaid = {{ not_paid | default(0) }};
+
+        new Chart(document.getElementById('riskPieChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Low Risk', 'Medium Risk', 'High Risk'],
+                datasets: [{ data: [lowRisk, mediumRisk, highRisk], backgroundColor: ['#22c55e', '#f59e0b', '#ef4444'] }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+        });
+
+        new Chart(document.getElementById('paymentBarChart'), {
+            type: 'bar',
+            data: {
+                labels: ['On Time', 'Late', 'Not Paid'],
+                datasets: [{ data: [onTime, late, unpaid], backgroundColor: ['#22c55e', '#f59e0b', '#ef4444'] }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
+    </script>
+
+{% endif %}
+
+</body>
+</html>

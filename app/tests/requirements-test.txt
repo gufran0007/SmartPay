@@ -1,0 +1,6 @@
+pytest>=7.0
+pytest-cov>=4.0
+scikit-learn>=1.0
+pandas>=1.5
+numpy>=1.20
+bcrypt>=4.0

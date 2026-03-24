@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Invoices | Smart Pay</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.23/dist/full.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-gradient-to-r from-blue-600 to-teal-600 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <a href="/dashboard" class="flex items-center gap-2 hover:opacity-80">
+                <i class="ri-arrow-left-line"></i> Dashboard
+            </a>
+            <h1 class="font-bold">All Invoices</h1>
+            <a href="/upload" class="btn btn-sm bg-white text-blue-600 hover:bg-blue-50 gap-1">
+                <i class="ri-upload-cloud-line"></i> Upload New
+            </a>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-6 py-8">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Invoice Database</h1>
+                <p class="text-gray-600">{{ invoices|length }} invoices total</p>
+            </div>
+            <div class="flex gap-2">
+                <input type="text" id="searchInput" placeholder="Search invoices..." class="input input-bordered input-sm w-64">
+                <a href="/customers" class="btn btn-sm btn-outline gap-1">
+                    <i class="ri-user-line"></i> Customers
+                </a>
+            </div>
+        </div>
+
+        <!-- Status Filter Tabs -->
+        <div class="flex gap-2 mb-6 flex-wrap">
+            <button onclick="filterStatus('all')" class="btn btn-sm btn-primary gap-1 filter-btn" data-status="all">
+                <i class="ri-list-check"></i> All <span class="badge badge-sm bg-white/20 text-white">{{ invoices|length }}</span>
+            </button>
+            <button onclick="filterStatus('pending')" class="btn btn-sm btn-outline gap-1 filter-btn" data-status="pending">
+                <i class="ri-time-line"></i> Pending <span class="badge badge-sm badge-warning">{{ pending }}</span>
+            </button>
+            <button onclick="filterStatus('paid')" class="btn btn-sm btn-outline gap-1 filter-btn" data-status="paid">
+                <i class="ri-check-double-line"></i> Paid <span class="badge badge-sm badge-success">{{ paid }}</span>
+            </button>
+            <button onclick="filterStatus('overdue')" class="btn btn-sm btn-outline gap-1 filter-btn" data-status="overdue">
+                <i class="ri-alarm-warning-line"></i> Overdue <span class="badge badge-sm badge-error">{{ overdue }}</span>
+            </button>
+            <button onclick="filterStatus('disputed')" class="btn btn-sm btn-outline gap-1 filter-btn" data-status="disputed">
+                <i class="ri-question-line"></i> Disputed <span class="badge badge-sm badge-info">{{ disputed }}</span>
+            </button>
+        </div>
+
+        {% if invoices %}
+        <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="table w-full" id="invoiceTable">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="font-semibold">ID</th>
+                            <th class="font-semibold">Customer</th>
+                            <th class="font-semibold">Invoice #</th>
+                            <th class="font-semibold">Company</th>
+                            <th class="font-semibold">Amount</th>
+                            <th class="font-semibold">Date</th>
+                            <th class="font-semibold">Status</th>
+                            <th class="font-semibold">Risk</th>
+                            <th class="font-semibold">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for inv in invoices %}
+                        <tr class="hover:bg-gray-50 invoice-row" data-status="{{ inv.status or 'pending' }}">
+                            <td class="font-mono text-sm">{{ inv.id }}</td>
+                            <td>
+                                <div class="font-medium">{{ inv.customer_name if inv.customer_name != 'N/A' else 'Unknown' }}</div>
+                                {% if inv.customer_email and inv.customer_email != 'N/A' %}
+                                <div class="text-xs text-gray-500 truncate max-w-[150px]">{{ inv.customer_email }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="font-medium">{{ inv.invoice_number if inv.invoice_number != 'N/A' else '\u2014' }}</td>
+                            <td class="text-sm text-gray-600">{{ inv.company_name if inv.company_name and inv.company_name != 'N/A' else '\u2014' }}</td>
+                            <td>
+                                <div class="font-bold">{{ inv.amount if inv.amount != 'N/A' else '\u2014' }}</div>
+                                <div class="text-xs text-gray-500">{{ inv.currency if inv.currency != 'N/A' else '' }}</div>
+                            </td>
+                            <td>
+                                <div class="text-sm">{{ inv.date if inv.date != 'N/A' else '\u2014' }}</div>
+                                {% if inv.due_date and inv.due_date != 'N/A' %}
+                                <div class="text-xs {% if inv.status == 'overdue' %}text-red-600 font-medium{% else %}text-blue-600{% endif %}">Due: {{ inv.due_date }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% set s = inv.status or 'pending' %}
+                                {% if s == 'paid' %}
+                                <span class="badge badge-success badge-sm gap-1"><i class="ri-check-double-line"></i> Paid</span>
+                                {% elif s == 'overdue' %}
+                                <span class="badge badge-error badge-sm gap-1"><i class="ri-alarm-warning-line"></i> Overdue</span>
+                                {% elif s == 'disputed' %}
+                                <span class="badge badge-info badge-sm gap-1"><i class="ri-question-line"></i> Disputed</span>
+                                {% else %}
+                                <span class="badge badge-warning badge-sm gap-1"><i class="ri-time-line"></i> Pending</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if inv.features and inv.features.predicted_label is not none %}
+                                    {% if inv.features.predicted_label == 1 %}
+                                    <span class="badge badge-error badge-sm gap-1"><i class="ri-alert-line"></i> High</span>
+                                    {% else %}
+                                    <span class="badge badge-success badge-sm gap-1"><i class="ri-check-line"></i> Low</span>
+                                    {% endif %}
+                                {% else %}
+                                <span class="badge badge-ghost badge-sm">\u2014</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="flex gap-1">
+                                    <a href="/view-invoice/{{ inv.id }}" class="btn btn-xs btn-outline btn-info" title="View">
+                                        <i class="ri-eye-line"></i>
+                                    </a>
+                                    <a href="/edit-invoice/{{ inv.id }}" class="btn btn-xs btn-outline btn-warning" title="Edit">
+                                        <i class="ri-edit-line"></i>
+                                    </a>
+                                    <a href="/ml/predict/{{ inv.id }}" class="btn btn-xs btn-outline btn-primary" title="Predict">
+                                        <i class="ri-brain-line"></i>
+                                    </a>
+                                    <form action="/delete-invoice" method="post" onsubmit="return confirm('Delete this invoice?')" class="inline">
+                                        <input type="hidden" name="invoice_id" value="{{ inv.id }}">
+                                        <button type="submit" class="btn btn-xs btn-outline btn-error" title="Delete">
+                                            <i class="ri-delete-bin-line"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+            <div class="bg-white rounded-xl p-4 shadow-sm">
+                <div class="text-2xl font-bold text-blue-600">{{ invoices|length }}</div>
+                <div class="text-sm text-gray-500">Total Invoices</div>
+            </div>
+            <div class="bg-white rounded-xl p-4 shadow-sm">
+                <div class="text-2xl font-bold text-green-600">{{ paid }}</div>
+                <div class="text-sm text-gray-500">Paid</div>
+            </div>
+            <div class="bg-white rounded-xl p-4 shadow-sm">
+                <div class="text-2xl font-bold text-red-600">{{ overdue }}</div>
+                <div class="text-sm text-gray-500">Overdue</div>
+            </div>
+            <div class="bg-white rounded-xl p-4 shadow-sm">
+                <div class="text-2xl font-bold text-amber-600">{{ pending }}</div>
+                <div class="text-sm text-gray-500">Pending</div>
+            </div>
+        </div>
+        {% else %}
+        <div class="bg-white rounded-2xl shadow-sm p-12 text-center">
+            <i class="ri-file-list-line text-6xl text-gray-300 mb-4"></i>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">No Invoices Yet</h3>
+            <p class="text-gray-500 mb-6">Upload your first invoice to get started</p>
+            <a href="/upload" class="btn btn-primary gap-2">
+                <i class="ri-upload-cloud-line"></i> Upload Invoice
+            </a>
+        </div>
+        {% endif %}
+    </main>
+
+    <script>
+    // Search
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+        var term = e.target.value.toLowerCase();
+        document.querySelectorAll('.invoice-row').forEach(function(row) {
+            row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+        });
+    });
+
+    // Status filter
+    function filterStatus(status) {
+        document.querySelectorAll('.invoice-row').forEach(function(row) {
+            if (status === 'all' || row.dataset.status === status) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        document.querySelectorAll('.filter-btn').forEach(function(btn) {
+            if (btn.dataset.status === status) {
+                btn.classList.remove('btn-outline');
+                btn.classList.add('btn-primary');
+            } else {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-outline');
+            }
+        });
+    }
+    </script>
+</body>
+</html>

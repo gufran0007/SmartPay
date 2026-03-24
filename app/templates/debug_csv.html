@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSV Debug</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-8 bg-gray-100">
+    <h1 class="text-2xl font-bold mb-4">CSV Loading Debug</h1>
+    
+    <div class="bg-white p-4 rounded-lg shadow mb-4">
+        <h2 class="text-xl font-semibold mb-2">Statistics</h2>
+        <pre class="bg-gray-50 p-4 rounded">{{ stats|tojson(indent=2) }}</pre>
+    </div>
+    
+    <div class="bg-white p-4 rounded-lg shadow mb-4">
+        <h2 class="text-xl font-semibold mb-2">Customer Count: {{ customer_count }}</h2>
+        <h3 class="text-lg font-semibold mb-2">Customer Keys (first 10):</h3>
+        <ul class="list-disc pl-5">
+            {% for key in customer_history_keys %}
+            <li>{{ key }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    
+    <div class="bg-white p-4 rounded-lg shadow mb-4">
+        <h2 class="text-xl font-semibold mb-2">Sample Customers (first 5):</h2>
+        <pre class="bg-gray-50 p-4 rounded overflow-auto">{{ customers|tojson(indent=2) }}</pre>
+    </div>
+    
+    <div class="bg-white p-4 rounded-lg shadow">
+        <h2 class="text-xl font-semibold mb-2">Sample Dataset Records (first 5):</h2>
+        <pre class="bg-gray-50 p-4 rounded overflow-auto">{{ dataset_records|tojson(indent=2) }}</pre>
+    </div>
+</body>
+</html>

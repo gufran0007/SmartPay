@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <title>Smart Pay | CSV Upload Successful</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.23/dist/full.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="navbar glass fixed top-0 left-0 right-0 z-50 border-b border-gray-100">
+        <div class="container mx-auto px-4 flex justify-between items-center">
+            <a href="/dashboard" class="flex items-center gap-2 text-2xl font-bold">
+                <i class="ri-file-text text-blue-600"></i> 
+                <span>Smart Pay</span>
+            </a>
+            <a href="/dashboard" class="btn btn-sm btn-outline flex items-center gap-1">
+                <i class="ri-dashboard-line"></i> Dashboard
+            </a>
+        </div>
+    </nav>
+
+    <main class="pt-32">
+        <div class="max-w-2xl mx-auto px-6">
+            <div class="bg-white rounded-2xl shadow-sm p-8 text-center">
+                <!-- Success Icon -->
+                <div class="w-24 h-24 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <i class="ri-check-double-line text-white text-4xl"></i>
+                </div>
+                
+                <!-- Success Message -->
+                <h1 class="text-3xl font-bold text-gray-900 mb-4">CSV Upload Successful!</h1>
+                <p class="text-gray-600 mb-6">
+                    Your customer history CSV file <span class="font-semibold text-blue-600">{{ filename }}</span> 
+                    has been uploaded and is being processed.
+                </p>
+                
+                <div class="bg-blue-50 rounded-xl p-6 mb-8">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i class="ri-information-line text-blue-600 text-2xl"></i>
+                        <h3 class="text-lg font-semibold text-blue-900">What happens next?</h3>
+                    </div>
+                    <ul class="text-left space-y-2 text-gray-700">
+                        <li class="flex items-start gap-2">
+                            <i class="ri-check-line text-green-600 mt-1"></i>
+                            <span>Customer data is being extracted and analyzed</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i class="ri-check-line text-green-600 mt-1"></i>
+                            <span>Payment patterns and risk scores are being calculated</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i class="ri-check-line text-green-600 mt-1"></i>
+                            <span>Machine learning model will be retrained with new data</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i class="ri-check-line text-green-600 mt-1"></i>
+                            <span>You can view insights on the dashboard</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- Processing Animation -->
+                <div class="mb-8">
+                    <div class="flex items-center justify-center gap-3 mb-4">
+                        <div class="w-3 h-3 bg-blue-600 rounded-full"></div>
+                        <div class="w-3 h-3 bg-blue-600 rounded-full"></div>
+                        <div class="w-3 h-3 bg-blue-600 rounded-full"></div>
+                    </div>
+                    <p class="text-sm text-gray-500">{{ message }}</p>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <a href="/dashboard" class="btn btn-primary px-8 flex items-center gap-2">
+                        <i class="ri-dashboard-line"></i> Go to Dashboard
+                    </a>
+                    <a href="/customer-insights" class="btn btn-outline px-8 flex items-center gap-2">
+                        <i class="ri-line-chart-line"></i> View Insights
+                    </a>
+                    <a href="/upload-csv" class="btn btn-ghost px-8 flex items-center gap-2">
+                        <i class="ri-upload-cloud-line"></i> Upload Another
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Quick Links -->
+            <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <a href="/customers" class="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition text-center">
+                    <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <i class="ri-user-line text-blue-600 text-2xl"></i>
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-2">Customer List</h3>
+                    <p class="text-sm text-gray-600">View all customers with updated payment history</p>
+                </a>
+                
+                <a href="/view-data" class="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition text-center">
+                    <div class="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <i class="ri-table-line text-teal-600 text-2xl"></i>
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-2">Invoices</h3>
+                    <p class="text-sm text-gray-600">Check existing invoices with new risk predictions</p>
+                </a>
+                
+                <a href="/ml/train" class="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition text-center">
+                    <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <i class="ri-brain-line text-purple-600 text-2xl"></i>
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-2">Train AI Model</h3>
+                    <p class="text-sm text-gray-600">Retrain ML model with updated customer data</p>
+                </a>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
