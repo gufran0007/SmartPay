@@ -1,0 +1,28 @@
+services:
+  app:
+    build: .
+    container_name: smartpay-app
+    restart: unless-stopped
+    volumes:
+      - smartpay_data:/app/data
+    expose:
+      - "8000"
+
+  caddy:
+    image: caddy:2
+    container_name: smartpay-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  smartpay_data:
+  caddy_data:
+  caddy_config:
