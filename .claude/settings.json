@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(SESSION_SECRET=test GMAIL_USER=test@test.com GMAIL_APP_PASSWORD=test python -c \"from main import app; print\\('OK'\\)\")"
+    ]
+  }
+}
