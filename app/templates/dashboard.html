@@ -4,125 +4,62 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% if current_user %}Dashboard{% else %}Smart Pay | AI-Powered Invoice Management{% endif %}</title>
-    <meta name="description" content="SmartPay — open-source invoice management with ML payment-risk prediction. FastAPI, scikit-learn, Tesseract OCR. Built by Ghufran Aslam.">
+    <meta name="description" content="SmartPay reads your invoices and predicts which customers are likely to pay late, so you can chase risky invoices early and protect your cash flow. Built by Ghufran Aslam.">
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.23/dist/full.min.css" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
 
-        /* ───────── hero backdrop ───────── */
-        .hero-gradient {
-            background: radial-gradient(ellipse at 10% 0%, #dbeafe 0%, transparent 50%),
-                        radial-gradient(ellipse at 90% 10%, #e9d5ff 0%, transparent 45%),
-                        linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
-            position: relative; overflow: hidden;
-        }
-        .blob {
-            position: absolute; border-radius: 50%; filter: blur(60px); opacity: .45;
-            pointer-events: none; will-change: transform;
-        }
-        .blob-1 { width: 420px; height: 420px; background: #93c5fd; top: -120px; left: -100px; }
-        .blob-2 { width: 360px; height: 360px; background: #c4b5fd; top: 30%; right: -120px; }
-        .blob-3 { width: 280px; height: 280px; background: #99f6e4; bottom: -100px; left: 35%; }
+        /* ════════ Landing page — "Ledger" theme (guest branch only) ════════ */
+        .font-display { font-family: 'Fraunces', Georgia, 'Times New Roman', serif; font-optical-sizing: auto; letter-spacing: -0.015em; }
 
-        /* ───────── 3D tilt card ───────── */
-        .tilt-wrap { perspective: 1200px; }
-        .tilt-card {
-            transform-style: preserve-3d;
-            transition: transform .15s ease-out, box-shadow .3s ease;
-            will-change: transform;
-        }
-        .tilt-card .layer-pop { transform: translateZ(36px); }
-        .float-soft { animation: floatsoft 7s ease-in-out infinite; }
-        @keyframes floatsoft { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+        /* scroll reveal */
+        .reveal { opacity: 0; transform: translateY(26px); filter: blur(8px);
+            transition: opacity .9s cubic-bezier(.2,.7,.2,1), transform .9s cubic-bezier(.2,.7,.2,1), filter .9s ease; }
+        .reveal.is-in { opacity: 1; transform: none; filter: none; }
 
-        /* floating 3D chips around the hero card */
-        .chip3d {
-            position: absolute; display: flex; align-items: center; gap: 6px;
-            background: rgba(255,255,255,.9); backdrop-filter: blur(8px);
-            border: 1px solid rgba(226,232,240,.9); border-radius: 14px;
-            padding: 8px 14px; font-size: 12px; font-weight: 600; color: #334155;
-            box-shadow: 0 12px 30px -8px rgba(30,64,175,.25);
-            animation: floatsoft 6s ease-in-out infinite;
-        }
+        /* hero 3D stage */
+        .hero-stage { position: relative; }
+        #heroCanvas { position: absolute; inset: 0; z-index: 1; }
+        #heroCanvas canvas { display: block; width: 100%; height: 100%; }
 
-        /* ───────── scroll reveal ───────── */
-        .reveal { opacity: 0; transform: translateY(28px); transition: opacity .7s cubic-bezier(.2,.7,.2,1), transform .7s cubic-bezier(.2,.7,.2,1); }
-        .reveal.visible { opacity: 1; transform: translateY(0); }
-        .reveal-left { opacity: 0; transform: translateX(-36px); transition: all .7s cubic-bezier(.2,.7,.2,1); }
-        .reveal-left.visible { opacity: 1; transform: translateX(0); }
-        .reveal-scale { opacity: 0; transform: scale(.92); transition: all .6s cubic-bezier(.2,.7,.2,1); }
-        .reveal-scale.visible { opacity: 1; transform: scale(1); }
+        /* hero fallback / no-webgl composition */
+        .fb-wrap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 0; }
+        .fb-card { position: absolute; width: 168px; background: #fff; border: 1px solid #E7E5DF;
+            border-radius: 16px; box-shadow: 0 30px 60px -28px rgba(26,25,22,.45); padding: 16px; }
+        .fb-strip { height: 9px; border-radius: 5px; margin-bottom: 12px; width: 60%; }
+        .fb-row { height: 7px; border-radius: 4px; background: #ECEAE3; margin-bottom: 8px; }
+        .float-a { animation: floaty 6s ease-in-out infinite; }
+        .float-b { animation: floaty 7.4s ease-in-out infinite .6s; }
+        .float-c { animation: floaty 8s ease-in-out infinite .3s; }
+        @keyframes floaty { 0%,100% { transform: translateY(0) rotate(var(--r,0deg)); } 50% { transform: translateY(-16px) rotate(var(--r,0deg)); } }
 
-        /* ───────── mock dashboard innards ───────── */
-        .mock-donut {
-            width: 86px; height: 86px; border-radius: 50%;
-            background: conic-gradient(#22c55e 0 62%, #f59e0b 62% 84%, #ef4444 84% 100%);
-            position: relative;
-        }
-        .mock-donut::after { content: ""; position: absolute; inset: 17px; border-radius: 50%; background: #fff; }
-        .mock-bar { border-radius: 4px 4px 0 0; width: 16px; }
-        .grow-bar { transform-origin: bottom; animation: grow 1.2s cubic-bezier(.2,.8,.2,1) both; }
-        @keyframes grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
-        .mock-row { height: 9px; border-radius: 6px; background: #e5e7eb; }
-        .shimmer {
-            background: linear-gradient(90deg, #eef2f7 25%, #f8fafc 50%, #eef2f7 75%);
-            background-size: 200% 100%; animation: shimmer 2.4s linear infinite;
-        }
-        @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
-        .pulse-dot { animation: pulsedot 1.6s ease-in-out infinite; }
-        @keyframes pulsedot { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+        /* meaning-anchor tags over the hero */
+        .hero-tag { position: absolute; z-index: 3; display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(255,255,255,.92); backdrop-filter: blur(8px); border: 1px solid #E7E5DF;
+            border-radius: 999px; padding: 7px 13px; font-size: 12.5px; font-weight: 600; color: #1A1916;
+            box-shadow: 0 16px 36px -18px rgba(26,25,22,.4); }
 
-        /* ───────── avatar (Smarty the robot) ───────── */
-        .smarty { animation: floatsoft 5s ease-in-out infinite; }
-        .smarty-eye { animation: blink 4.5s infinite; transform-origin: center; }
-        @keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 95%, 97% { transform: scaleY(.08); } }
-        .smarty-arm { transform-origin: 8px 4px; animation: wave 3.6s ease-in-out infinite; }
-        @keyframes wave { 0%, 70%, 100% { transform: rotate(0deg); } 78% { transform: rotate(-26deg); } 86% { transform: rotate(8deg); } 92% { transform: rotate(-18deg); } }
-        .smarty-antenna { animation: antenna 2.2s ease-in-out infinite; transform-origin: bottom center; }
-        @keyframes antenna { 0%,100% { transform: rotate(-4deg); } 50% { transform: rotate(5deg); } }
-        .speech {
-            animation: speechpop .5s .9s cubic-bezier(.2,.9,.3,1.3) both;
-        }
-        @keyframes speechpop { from { opacity: 0; transform: scale(.6) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-
-        /* ───────── feature card 3D hover ───────── */
-        .feat-card {
-            transition: transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s ease;
-            transform-style: preserve-3d;
-        }
-        .feat-card:hover {
-            transform: translateY(-8px) rotateX(4deg) rotateY(-3deg);
-            box-shadow: 0 28px 50px -16px rgba(30,64,175,.25);
-        }
-        .feat-icon { transition: transform .35s ease; }
-        .feat-card:hover .feat-icon { transform: translateZ(24px) scale(1.12); }
-
-        /* ───────── how-it-works connector ───────── */
-        .step-line { position: absolute; top: 32px; left: 12.5%; right: 12.5%; height: 3px; background: #e2e8f0; z-index: 0; overflow: hidden; border-radius: 2px; }
-        .step-line-fill { height: 100%; width: 0; background: linear-gradient(90deg, #3b82f6, #0d9488); transition: width 1.6s cubic-bezier(.2,.7,.2,1); }
-        .step-line.visible .step-line-fill { width: 100%; }
-
-        /* ───────── stat counters band ───────── */
-        .stat-num { font-variant-numeric: tabular-nums; }
-
-        .gradient-primary { background: linear-gradient(135deg, #3b82f6, #0d9488); }
-        .gradient-text { background: linear-gradient(120deg, #2563eb, #0d9488); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        /* how-it-works connector */
+        .step-connect { position: absolute; top: 30px; left: 12.5%; right: 12.5%; height: 2px; background: #E7E5DF; overflow: hidden; }
+        .step-connect::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: #0E7C5A; transition: width 1.5s cubic-bezier(.2,.7,.2,1); }
+        .step-connect.is-in::after { width: 100%; }
 
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { animation: none !important; transition: none !important; }
-            .reveal, .reveal-left, .reveal-scale { opacity: 1; transform: none; }
+            .reveal { opacity: 1 !important; transform: none !important; filter: none !important; }
         }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
 
     <!-- ═══════════ NAVIGATION — changes based on login state ═══════════ -->
-    <nav class="bg-gradient-to-r from-blue-600 to-teal-600 text-white shadow-lg sticky top-0 z-50">
+    <nav class="sticky top-0 z-50 {% if current_user %}bg-gradient-to-r from-blue-600 to-teal-600 text-white shadow-lg{% else %}bg-[#F6F5F1]/85 backdrop-blur border-b border-[#E7E5DF] text-[#1A1916]{% endif %}">
         <div class="container mx-auto px-4 py-3">
             <div class="flex justify-between items-center">
                 <a href="/" class="flex items-center gap-2">
@@ -148,14 +85,14 @@
                             <i class="ri-logout-box-r-line"></i> Logout
                         </a>
                     {% else %}
-                        <a href="https://github.com/gufran0007/smartpay" target="_blank" rel="noopener" class="btn btn-sm btn-ghost text-white hidden sm:inline-flex">
-                            <i class="ri-github-fill text-lg"></i> GitHub
+                        <a href="https://github.com/gufran0007/smartpay" target="_blank" rel="noopener" class="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-[#56544D] hover:text-[#1A1916] transition">
+                            <i class="ri-github-fill text-base"></i> Source
                         </a>
-                        <a href="/login" class="btn btn-sm btn-outline border-white text-white hover:bg-white hover:text-blue-600">
-                            <i class="ri-login-box-line"></i> Login
+                        <a href="/login" class="inline-flex items-center text-sm font-medium text-[#1A1916] hover:text-[#0E7C5A] transition px-3 py-2">
+                            Log in
                         </a>
-                        <a href="/register" class="btn btn-sm bg-white text-blue-600 hover:bg-blue-50 border-0">
-                            <i class="ri-user-add-line"></i> Register
+                        <a href="/register" class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-[#0E7C5A] hover:bg-[#0c6b4d] rounded-full px-4 py-2 transition shadow-sm">
+                            Get started <i class="ri-arrow-right-up-line"></i>
                         </a>
                     {% endif %}
                 </div>
@@ -166,317 +103,170 @@
 
 {% if not current_user %}
     <!-- ═══════════════════════════════════════════════════════════════ -->
-    <!--  GUEST VIEW — Premium landing page                              -->
+    <!--  GUEST VIEW — SmartPay landing ("Ledger" — ink & paper)         -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div class="bg-[#F6F5F1] text-[#1A1916]">
 
-    <!-- Hero -->
-    <header class="hero-gradient">
-        <div class="blob blob-1" data-parallax="0.25"></div>
-        <div class="blob blob-2" data-parallax="0.15"></div>
-        <div class="blob blob-3" data-parallax="0.35"></div>
+    <!-- ───────── Hero ───────── -->
+    <header class="relative overflow-hidden">
+        <div class="container mx-auto px-6 pt-16 pb-20 lg:pt-24 lg:pb-28">
+            <div class="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
 
-        <div class="container mx-auto px-6 py-20 lg:py-28 relative z-10">
-            <div class="grid lg:grid-cols-2 gap-12 items-center">
-                <div>
-                    <div class="inline-flex items-center gap-2 px-3 py-1 mb-6 rounded-full bg-white/70 backdrop-blur border border-blue-100 text-sm text-gray-600 shadow-sm">
-                        <span class="w-2 h-2 rounded-full bg-green-500 pulse-dot"></span>
-                        Live in production &middot; Docker &middot; HTTPS
-                    </div>
-                    <h1 class="text-5xl lg:text-6xl font-black text-gray-900 leading-[1.08] mb-6 tracking-tight">
-                        Know which invoices<br><span class="gradient-text">get paid late</span> —<br>before they do.
+                <!-- copy -->
+                <div class="max-w-xl">
+                    <span class="inline-flex items-center gap-3 text-xs font-semibold tracking-[0.2em] uppercase text-[#0E7C5A] mb-7">
+                        <span class="w-7 h-px bg-[#0E7C5A]"></span> Invoice intelligence
+                    </span>
+                    <h1 class="font-display text-[2.7rem] leading-[1.05] sm:text-6xl sm:leading-[1.02] font-semibold text-[#1A1916] mb-6">
+                        Know which invoices<br>will be paid late.
                     </h1>
-                    <p class="text-xl text-gray-600 mb-8 leading-relaxed max-w-xl">
-                        SmartPay extracts invoice data with OCR, predicts payment risk with a trained machine-learning model, and gives finance teams one clear dashboard to act on.
+                    <p class="text-lg sm:text-xl text-[#56544D] leading-relaxed mb-9">
+                        SmartPay reads your invoices and predicts which customers are likely to pay late — so you can chase the risky ones early and keep your cash flow healthy.
                     </p>
-                    <div class="flex flex-wrap gap-4">
-                        <a href="/register" class="btn btn-primary btn-lg gap-2 shadow-xl shadow-blue-200 hover:scale-105 transition-transform">
-                            <i class="ri-rocket-line"></i> Create Free Account
+                    <div class="flex flex-wrap items-center gap-3">
+                        <a href="/register" class="inline-flex items-center gap-2 bg-[#0E7C5A] hover:bg-[#0c6b4d] text-white font-semibold rounded-full px-7 py-3.5 transition shadow-lg shadow-[#0E7C5A]/20 hover:-translate-y-0.5">
+                            Get started <i class="ri-arrow-right-line"></i>
                         </a>
-                        <a href="https://github.com/gufran0007/smartpay" target="_blank" rel="noopener" class="btn btn-outline btn-lg gap-2 hover:scale-105 transition-transform">
-                            <i class="ri-github-fill"></i> View Source
+                        <a href="https://github.com/gufran0007/smartpay" target="_blank" rel="noopener" class="inline-flex items-center gap-2 text-[#1A1916] font-semibold rounded-full px-6 py-3.5 border border-[#D9D6CE] hover:border-[#1A1916] transition">
+                            <i class="ri-github-fill"></i> View source
                         </a>
                     </div>
-                    <div class="mt-10 flex flex-wrap items-center gap-x-8 gap-y-3 text-sm text-gray-500">
-                        <div class="flex items-center gap-2"><i class="ri-checkbox-circle-line text-green-500"></i> Open source</div>
-                        <div class="flex items-center gap-2"><i class="ri-checkbox-circle-line text-green-500"></i> 109 automated tests</div>
-                        <div class="flex items-center gap-2"><i class="ri-checkbox-circle-line text-green-500"></i> Deployed live</div>
+                    <div class="mt-8 flex items-center gap-6 text-sm text-[#807D75]">
+                        <span class="inline-flex items-center gap-2"><i class="ri-checkbox-circle-line text-[#0E7C5A]"></i> Free to use</span>
+                        <span class="inline-flex items-center gap-2"><i class="ri-checkbox-circle-line text-[#0E7C5A]"></i> Open source</span>
                     </div>
                 </div>
 
-                <!-- 3D tilt dashboard illustration + avatar -->
-                <div class="tilt-wrap relative">
+                <!-- 3D hero stage -->
+                <div class="hero-stage h-[360px] sm:h-[440px] lg:h-[520px]">
+                    <div id="heroCanvas" aria-hidden="true"></div>
 
-                    <!-- Smarty the robot avatar -->
-                    <div class="smarty absolute -top-16 -left-4 lg:-left-10 z-20 w-28 lg:w-32">
-                        <div class="speech absolute -top-12 left-20 bg-white border border-gray-200 shadow-lg rounded-2xl rounded-bl-none px-3 py-2 text-xs font-semibold text-gray-700 whitespace-nowrap">
-                            Hi! I spot late payers <i class="ri-search-eye-line text-blue-600"></i>
+                    <!-- graceful fallback / no-webgl composition -->
+                    <div class="fb-wrap" id="heroFallback">
+                        <div class="fb-card float-a" style="--r:-6deg; transform:translate(-92px,-72px) rotate(-6deg);">
+                            <div class="fb-strip" style="background:#0E7C5A;"></div>
+                            <div class="fb-row" style="width:90%"></div><div class="fb-row" style="width:70%"></div><div class="fb-row" style="width:80%"></div>
                         </div>
-                        <svg viewBox="0 0 120 130" xmlns="http://www.w3.org/2000/svg" aria-label="Smarty, the SmartPay robot assistant">
-                            <!-- antenna -->
-                            <g class="smarty-antenna">
-                                <line x1="60" y1="22" x2="60" y2="8" stroke="#3b82f6" stroke-width="3" stroke-linecap="round"/>
-                                <circle cx="60" cy="6" r="5" fill="#0d9488"/>
-                            </g>
-                            <!-- head -->
-                            <rect x="28" y="20" width="64" height="48" rx="14" fill="url(#headGrad)"/>
-                            <defs>
-                                <linearGradient id="headGrad" x1="0" y1="0" x2="1" y2="1">
-                                    <stop offset="0" stop-color="#3b82f6"/>
-                                    <stop offset="1" stop-color="#0d9488"/>
-                                </linearGradient>
-                            </defs>
-                            <!-- face plate -->
-                            <rect x="36" y="28" width="48" height="32" rx="10" fill="#0f172a"/>
-                            <!-- eyes -->
-                            <circle class="smarty-eye" cx="52" cy="44" r="5" fill="#5eead4"/>
-                            <circle class="smarty-eye" cx="68" cy="44" r="5" fill="#5eead4"/>
-                            <!-- smile -->
-                            <path d="M52 53 Q60 58 68 53" stroke="#5eead4" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-                            <!-- body -->
-                            <rect x="36" y="72" width="48" height="36" rx="12" fill="#e2e8f0"/>
-                            <rect x="48" y="80" width="24" height="14" rx="4" fill="#3b82f6" opacity=".85"/>
-                            <text x="60" y="90.5" text-anchor="middle" font-size="8" font-weight="700" fill="#fff" font-family="Inter, sans-serif">€</text>
-                            <!-- waving arm -->
-                            <g class="smarty-arm" transform="translate(86,76)">
-                                <rect x="0" y="0" width="9" height="26" rx="4.5" fill="#94a3b8"/>
-                                <circle cx="4.5" cy="28" r="6" fill="#3b82f6"/>
-                            </g>
-                            <!-- left arm -->
-                            <rect x="25" y="76" width="9" height="26" rx="4.5" fill="#94a3b8"/>
-                            <circle cx="29.5" cy="104" r="6" fill="#3b82f6"/>
-                            <!-- legs -->
-                            <rect x="44" y="108" width="10" height="14" rx="5" fill="#94a3b8"/>
-                            <rect x="66" y="108" width="10" height="14" rx="5" fill="#94a3b8"/>
-                        </svg>
-                    </div>
-
-                    <!-- floating chips -->
-                    <div class="chip3d -top-6 right-2 lg:right-6" style="animation-delay:.6s">
-                        <i class="ri-brain-line text-blue-600"></i> Random Forest · 17 features
-                    </div>
-                    <div class="chip3d -bottom-5 -left-2 lg:-left-6 z-20" style="animation-delay:1.2s">
-                        <i class="ri-shield-check-line text-teal-600"></i> Risk scored in &lt;1s
-                    </div>
-
-                    <!-- 3D tilt card -->
-                    <div id="tiltCard" class="tilt-card float-soft bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
-                        <!-- browser chrome -->
-                        <div class="bg-gray-100 px-4 py-2.5 flex items-center gap-2 border-b border-gray-200">
-                            <span class="w-3 h-3 rounded-full bg-red-400"></span>
-                            <span class="w-3 h-3 rounded-full bg-yellow-400"></span>
-                            <span class="w-3 h-3 rounded-full bg-green-400"></span>
-                            <div class="flex-1 text-center">
-                                <span class="inline-flex items-center gap-1 text-xs text-gray-500 bg-white border border-gray-200 rounded-md px-3 py-0.5">
-                                    <i class="ri-lock-line text-green-600"></i> ghufranaslam.com/dashboard
-                                </span>
-                            </div>
+                        <div class="fb-card float-b" style="--r:5deg; transform:translate(82px,18px) rotate(5deg);">
+                            <div class="fb-strip" style="background:#C2613B;"></div>
+                            <div class="fb-row" style="width:85%"></div><div class="fb-row" style="width:60%"></div><div class="fb-row" style="width:75%"></div>
                         </div>
-                        <!-- mock dashboard body -->
-                        <div class="p-5 layer-pop">
-                            <div class="flex items-center justify-between mb-4">
-                                <div>
-                                    <div class="h-3 w-28 rounded bg-gray-800 mb-1.5"></div>
-                                    <div class="h-2 w-44 mock-row"></div>
-                                </div>
-                                <span class="badge badge-primary gap-1">
-                                    <span class="w-2 h-2 rounded-full bg-white pulse-dot"></span> Live
-                                </span>
-                            </div>
-                            <div class="grid grid-cols-4 gap-3 mb-4">
-                                <div class="bg-blue-50 rounded-xl p-3">
-                                    <div class="h-4 w-10 rounded bg-blue-600/80 mb-1.5"></div>
-                                    <div class="h-2 w-full mock-row"></div>
-                                </div>
-                                <div class="bg-green-50 rounded-xl p-3">
-                                    <div class="h-4 w-12 rounded bg-green-600/80 mb-1.5"></div>
-                                    <div class="h-2 w-full mock-row"></div>
-                                </div>
-                                <div class="bg-amber-50 rounded-xl p-3">
-                                    <div class="h-4 w-8 rounded bg-amber-500/80 mb-1.5"></div>
-                                    <div class="h-2 w-full mock-row"></div>
-                                </div>
-                                <div class="bg-red-50 rounded-xl p-3">
-                                    <div class="h-4 w-8 rounded bg-red-500/80 mb-1.5"></div>
-                                    <div class="h-2 w-full mock-row"></div>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-3 mb-4">
-                                <div class="border border-gray-100 rounded-xl p-3 flex items-center gap-4">
-                                    <div class="mock-donut shrink-0"></div>
-                                    <div class="flex-1 space-y-2">
-                                        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-green-500"></span><div class="h-2 flex-1 mock-row"></div></div>
-                                        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span><div class="h-2 flex-1 mock-row"></div></div>
-                                        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-red-500"></span><div class="h-2 flex-1 mock-row"></div></div>
-                                    </div>
-                                </div>
-                                <div class="border border-gray-100 rounded-xl p-3 flex items-end justify-around" style="height:112px;">
-                                    <div class="mock-bar grow-bar bg-green-500" style="height:72%; animation-delay:.1s"></div>
-                                    <div class="mock-bar grow-bar bg-green-400" style="height:55%; animation-delay:.25s"></div>
-                                    <div class="mock-bar grow-bar bg-amber-400" style="height:38%; animation-delay:.4s"></div>
-                                    <div class="mock-bar grow-bar bg-red-400" style="height:22%; animation-delay:.55s"></div>
-                                </div>
-                            </div>
-                            <div class="space-y-2.5">
-                                <div class="flex items-center gap-3">
-                                    <div class="h-2.5 flex-1 mock-row shimmer"></div>
-                                    <span class="badge badge-success badge-sm">Low</span>
-                                </div>
-                                <div class="flex items-center gap-3">
-                                    <div class="h-2.5 flex-1 mock-row shimmer" style="animation-delay:.4s"></div>
-                                    <span class="badge badge-error badge-sm">High</span>
-                                </div>
-                                <div class="flex items-center gap-3">
-                                    <div class="h-2.5 flex-1 mock-row shimmer" style="animation-delay:.8s"></div>
-                                    <span class="badge badge-success badge-sm">Low</span>
-                                </div>
-                            </div>
+                        <div class="fb-card float-c" style="--r:-2deg; transform:translate(-18px,92px) rotate(-2deg);">
+                            <div class="fb-strip" style="background:#0E7C5A;"></div>
+                            <div class="fb-row" style="width:80%"></div><div class="fb-row" style="width:90%"></div><div class="fb-row" style="width:55%"></div>
                         </div>
                     </div>
+
+                    <!-- meaning anchors -->
+                    <div class="hero-tag" style="top:13%; right:5%;"><span class="w-2 h-2 rounded-full bg-[#0E7C5A]"></span> On time</div>
+                    <div class="hero-tag" style="bottom:15%; left:1%;"><span class="w-2 h-2 rounded-full bg-[#C2613B]"></span> At risk</div>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- Numbers band -->
-    <section class="py-14 bg-white border-y border-gray-100">
-        <div class="container mx-auto px-6">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-                <div class="reveal">
-                    <div class="stat-num text-4xl font-extrabold text-gray-900"><span data-count="2466">0</span></div>
-                    <div class="text-sm text-gray-500 mt-1">Training records</div>
+    <!-- ───────── What it does ───────── -->
+    <section class="bg-white border-t border-[#E7E5DF]">
+        <div class="container mx-auto px-6 py-20 lg:py-28">
+            <div class="max-w-2xl mb-14 reveal">
+                <h2 class="font-display text-4xl sm:text-5xl font-semibold text-[#1A1916] mb-4">A clearer way to get paid</h2>
+                <p class="text-lg text-[#56544D]">Three simple things SmartPay does for your business.</p>
+            </div>
+            <div class="grid md:grid-cols-3 gap-px bg-[#E7E5DF] border border-[#E7E5DF] rounded-2xl overflow-hidden">
+                <div class="bg-white p-8 lg:p-10 reveal">
+                    <div class="w-12 h-12 rounded-xl bg-[#0E7C5A]/10 flex items-center justify-center mb-6"><i class="ri-radar-line text-2xl text-[#0E7C5A]"></i></div>
+                    <h3 class="font-display text-2xl font-semibold mb-3">See risk early</h3>
+                    <p class="text-[#56544D] leading-relaxed">SmartPay predicts which invoices are likely to be paid late, so you can act before they ever go overdue.</p>
                 </div>
-                <div class="reveal" style="transition-delay:.08s">
-                    <div class="stat-num text-4xl font-extrabold text-gray-900"><span data-count="109">0</span></div>
-                    <div class="text-sm text-gray-500 mt-1">Automated tests</div>
+                <div class="bg-white p-8 lg:p-10 reveal" style="transition-delay:.1s">
+                    <div class="w-12 h-12 rounded-xl bg-[#0E7C5A]/10 flex items-center justify-center mb-6"><i class="ri-magic-line text-2xl text-[#0E7C5A]"></i></div>
+                    <h3 class="font-display text-2xl font-semibold mb-3">Less data entry</h3>
+                    <p class="text-[#56544D] leading-relaxed">Upload an invoice and the important details — customer, amount, due date — are read and filled in for you.</p>
                 </div>
-                <div class="reveal" style="transition-delay:.16s">
-                    <div class="stat-num text-4xl font-extrabold text-gray-900"><span data-count="17">0</span></div>
-                    <div class="text-sm text-gray-500 mt-1">ML features engineered</div>
-                </div>
-                <div class="reveal" style="transition-delay:.24s">
-                    <div class="stat-num text-4xl font-extrabold text-gray-900"><span data-count="5">0</span></div>
-                    <div class="text-sm text-gray-500 mt-1">Backend modules</div>
+                <div class="bg-white p-8 lg:p-10 reveal" style="transition-delay:.2s">
+                    <div class="w-12 h-12 rounded-xl bg-[#0E7C5A]/10 flex items-center justify-center mb-6"><i class="ri-line-chart-line text-2xl text-[#0E7C5A]"></i></div>
+                    <h3 class="font-display text-2xl font-semibold mb-3">Protect cash flow</h3>
+                    <p class="text-[#56544D] leading-relaxed">Spend your time chasing the customers most likely to slip, and keep money arriving when you expect it.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- What it does -->
-    <section class="py-20 bg-white">
-        <div class="container mx-auto px-6">
-            <div class="text-center mb-16 reveal">
-                <h2 class="text-4xl font-bold text-gray-900 mb-4">What it does</h2>
-                <p class="text-xl text-gray-600 max-w-2xl mx-auto">Three core capabilities, built end-to-end</p>
-            </div>
-            <div class="grid md:grid-cols-3 gap-8" style="perspective: 1400px;">
-                <div class="feat-card bg-gray-50 rounded-2xl p-8 reveal">
-                    <div class="feat-icon w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
-                        <i class="ri-scan-line text-2xl text-blue-600"></i>
-                    </div>
-                    <h3 class="text-xl font-bold text-gray-900 mb-3">OCR Invoice Extraction</h3>
-                    <p class="text-gray-600">Upload a PDF or image invoice and Tesseract OCR extracts customer details, amounts, and dates automatically — no manual typing.</p>
-                </div>
-                <div class="feat-card bg-gray-50 rounded-2xl p-8 reveal" style="transition-delay:.1s">
-                    <div class="feat-icon w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
-                        <i class="ri-brain-line text-2xl text-blue-600"></i>
-                    </div>
-                    <h3 class="text-xl font-bold text-gray-900 mb-3">ML Payment Prediction</h3>
-                    <p class="text-gray-600">A Random Forest model trained on 2,466 real invoice records predicts which invoices will be paid late, with per-customer reliability scoring.</p>
-                </div>
-                <div class="feat-card bg-gray-50 rounded-2xl p-8 reveal" style="transition-delay:.2s">
-                    <div class="feat-icon w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
-                        <i class="ri-dashboard-3-line text-2xl text-blue-600"></i>
-                    </div>
-                    <h3 class="text-xl font-bold text-gray-900 mb-3">Smart Dashboard</h3>
-                    <p class="text-gray-600">Risk distribution, payment behaviour, and customer analytics in one view — with automated email reminders that adapt to risk level.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- How It Works -->
-    <section class="py-20 bg-gray-50">
-        <div class="container mx-auto px-6">
-            <div class="text-center mb-16 reveal">
-                <h2 class="text-4xl font-bold text-gray-900 mb-4">How It Works</h2>
-                <p class="text-xl text-gray-600">Four simple steps to smarter invoice management</p>
+    <!-- ───────── How it works ───────── -->
+    <section class="bg-[#F6F5F1] border-t border-[#E7E5DF]">
+        <div class="container mx-auto px-6 py-20 lg:py-28">
+            <div class="max-w-2xl mb-16 reveal">
+                <h2 class="font-display text-4xl sm:text-5xl font-semibold text-[#1A1916] mb-4">How it works</h2>
+                <p class="text-lg text-[#56544D]">From invoice to action in four steps.</p>
             </div>
             <div class="relative">
-                <div class="step-line hidden md:block reveal"><div class="step-line-fill"></div></div>
-                <div class="grid md:grid-cols-4 gap-8 relative z-10">
-                    <div class="text-center reveal-scale">
-                        <div class="w-16 h-16 gradient-primary rounded-full flex items-center justify-center mx-auto mb-4 text-white text-2xl font-bold shadow-lg shadow-blue-200">1</div>
-                        <h3 class="font-bold text-gray-900 mb-2">Upload</h3>
-                        <p class="text-gray-600 text-sm">Upload PDF or image invoices</p>
+                <div class="step-connect hidden md:block reveal"></div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-12 relative">
+                    <div class="reveal">
+                        <div class="w-16 h-16 rounded-full bg-white border border-[#E7E5DF] flex items-center justify-center mb-5 relative z-10 shadow-sm">
+                            <span class="font-display text-2xl font-semibold text-[#0E7C5A]">1</span>
+                        </div>
+                        <h3 class="font-semibold text-lg mb-2">Upload</h3>
+                        <p class="text-[#56544D] text-sm leading-relaxed">Add an invoice as a PDF or photo — no template required.</p>
                     </div>
-                    <div class="text-center reveal-scale" style="transition-delay:.12s">
-                        <div class="w-16 h-16 gradient-primary rounded-full flex items-center justify-center mx-auto mb-4 text-white text-2xl font-bold shadow-lg shadow-blue-200">2</div>
-                        <h3 class="font-bold text-gray-900 mb-2">Extract</h3>
-                        <p class="text-gray-600 text-sm">OCR extracts key invoice data</p>
+                    <div class="reveal" style="transition-delay:.1s">
+                        <div class="w-16 h-16 rounded-full bg-white border border-[#E7E5DF] flex items-center justify-center mb-5 relative z-10 shadow-sm">
+                            <span class="font-display text-2xl font-semibold text-[#0E7C5A]">2</span>
+                        </div>
+                        <h3 class="font-semibold text-lg mb-2">Extract</h3>
+                        <p class="text-[#56544D] text-sm leading-relaxed">The customer, amount and due date are read out automatically.</p>
                     </div>
-                    <div class="text-center reveal-scale" style="transition-delay:.24s">
-                        <div class="w-16 h-16 gradient-primary rounded-full flex items-center justify-center mx-auto mb-4 text-white text-2xl font-bold shadow-lg shadow-blue-200">3</div>
-                        <h3 class="font-bold text-gray-900 mb-2">Analyze</h3>
-                        <p class="text-gray-600 text-sm">ML predicts payment behavior</p>
+                    <div class="reveal" style="transition-delay:.2s">
+                        <div class="w-16 h-16 rounded-full bg-white border border-[#E7E5DF] flex items-center justify-center mb-5 relative z-10 shadow-sm">
+                            <span class="font-display text-2xl font-semibold text-[#0E7C5A]">3</span>
+                        </div>
+                        <h3 class="font-semibold text-lg mb-2">Predict</h3>
+                        <p class="text-[#56544D] text-sm leading-relaxed">SmartPay scores how likely the invoice is to be paid late.</p>
                     </div>
-                    <div class="text-center reveal-scale" style="transition-delay:.36s">
-                        <div class="w-16 h-16 gradient-primary rounded-full flex items-center justify-center mx-auto mb-4 text-white text-2xl font-bold shadow-lg shadow-blue-200">4</div>
-                        <h3 class="font-bold text-gray-900 mb-2">Act</h3>
-                        <p class="text-gray-600 text-sm">Take action on insights</p>
+                    <div class="reveal" style="transition-delay:.3s">
+                        <div class="w-16 h-16 rounded-full bg-white border border-[#E7E5DF] flex items-center justify-center mb-5 relative z-10 shadow-sm">
+                            <span class="font-display text-2xl font-semibold text-[#0E7C5A]">4</span>
+                        </div>
+                        <h3 class="font-semibold text-lg mb-2">Act</h3>
+                        <p class="text-[#56544D] text-sm leading-relaxed">Chase the risky invoices early, before they ever go overdue.</p>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Why SmartPay -->
-    <section class="py-20 bg-white">
-        <div class="container mx-auto px-6">
-            <div class="grid lg:grid-cols-2 gap-12 items-center">
-                <div class="reveal-left">
-                    <h2 class="text-4xl font-bold text-gray-900 mb-6">Why late payments matter</h2>
-                    <p class="text-lg text-gray-600 mb-6 leading-relaxed">
-                        Late payments are one of the biggest cash-flow killers for small businesses. Most invoicing tools only tell you an invoice is overdue <em>after</em> it happens.
-                    </p>
-                    <p class="text-lg text-gray-600 mb-8 leading-relaxed">
-                        SmartPay flips that: it learns each customer's payment behaviour and flags the risky invoices <strong>up front</strong>, so you can chase the right customers before the due date — not weeks after.
-                    </p>
-                    <ul class="space-y-4">
-                        <li class="flex items-start gap-3">
-                            <i class="ri-checkbox-circle-fill text-teal-600 text-xl mt-0.5"></i>
-                            <span class="text-gray-700"><strong>Per-customer reliability scores</strong> built from real payment history</span>
-                        </li>
-                        <li class="flex items-start gap-3">
-                            <i class="ri-checkbox-circle-fill text-teal-600 text-xl mt-0.5"></i>
-                            <span class="text-gray-700"><strong>Risk-aware email reminders</strong> that adapt tone and urgency automatically</span>
-                        </li>
-                        <li class="flex items-start gap-3">
-                            <i class="ri-checkbox-circle-fill text-teal-600 text-xl mt-0.5"></i>
-                            <span class="text-gray-700"><strong>Explainable predictions</strong> — see exactly why an invoice was flagged</span>
-                        </li>
-                    </ul>
-                </div>
+    <!-- ───────── Why it matters ───────── -->
+    <section class="bg-white border-t border-[#E7E5DF]">
+        <div class="container mx-auto px-6 py-20 lg:py-28">
+            <div class="grid lg:grid-cols-2 gap-14 items-center">
                 <div class="reveal">
-                    <div class="bg-gradient-to-br from-blue-50 to-teal-50 rounded-3xl p-8 border border-blue-100">
-                        <div class="bg-white rounded-2xl shadow-lg p-6 mb-4">
+                    <h2 class="font-display text-4xl sm:text-5xl font-semibold text-[#1A1916] mb-6 leading-[1.08]">Late payments quietly drain your business</h2>
+                    <p class="text-lg text-[#56544D] leading-relaxed mb-5">
+                        A single overdue invoice can stall payroll, supplier payments and growth. Yet most tools only tell you an invoice is late <em>after</em> the deadline has already passed.
+                    </p>
+                    <p class="text-lg text-[#56544D] leading-relaxed">
+                        SmartPay flags the risky invoices up front — so you can act while it still makes a difference, instead of writing off the loss weeks later.
+                    </p>
+                </div>
+                <div class="reveal" style="transition-delay:.1s">
+                    <div class="space-y-4">
+                        <div class="bg-white border border-[#E7E5DF] rounded-2xl p-6 shadow-[0_24px_50px_-30px_rgba(26,25,22,.4)]">
                             <div class="flex items-center justify-between mb-3">
-                                <span class="font-semibold text-gray-800">Invoice #2031 — ACME Ltd</span>
-                                <span class="badge badge-error gap-1"><i class="ri-alert-line"></i> High risk</span>
+                                <span class="font-semibold">Invoice #2031 · ACME Ltd</span>
+                                <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#C2613B] bg-[#C2613B]/10 rounded-full px-3 py-1"><i class="ri-alert-line"></i> Likely late</span>
                             </div>
-                            <div class="text-sm text-gray-500 mb-4">€2,450 · due in 14 days</div>
-                            <div class="text-sm text-gray-600 bg-red-50 border border-red-100 rounded-lg p-3">
-                                <i class="ri-lightbulb-line text-red-500"></i>
-                                Flagged because this customer paid 3 of their last 4 invoices late, and this amount is 2× their usual invoice size.
+                            <div class="text-sm text-[#807D75] mb-4">€2,450 · due in 14 days</div>
+                            <div class="text-sm text-[#56544D] bg-[#FBF1EC] border border-[#EBD7CC] rounded-xl p-3 leading-relaxed">
+                                Flagged because this customer paid 3 of their last 4 invoices late, and this amount is about twice their usual size.
                             </div>
                         </div>
-                        <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <div class="bg-white border border-[#E7E5DF] rounded-2xl p-6 shadow-[0_24px_50px_-30px_rgba(26,25,22,.4)]">
                             <div class="flex items-center justify-between mb-3">
-                                <span class="font-semibold text-gray-800">Invoice #2032 — Globex</span>
-                                <span class="badge badge-success gap-1"><i class="ri-check-line"></i> Low risk</span>
+                                <span class="font-semibold">Invoice #2032 · Globex</span>
+                                <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0E7C5A] bg-[#0E7C5A]/10 rounded-full px-3 py-1"><i class="ri-check-line"></i> On track</span>
                             </div>
-                            <div class="text-sm text-gray-500 mb-4">€890 · due in 21 days</div>
-                            <div class="text-sm text-gray-600 bg-green-50 border border-green-100 rounded-lg p-3">
-                                <i class="ri-lightbulb-line text-green-600"></i>
+                            <div class="text-sm text-[#807D75] mb-4">€890 · due in 21 days</div>
+                            <div class="text-sm text-[#56544D] bg-[#ECF6F1] border border-[#CFE7DD] rounded-xl p-3 leading-relaxed">
                                 Reliable payer — 12 of 12 invoices paid on time over the last year.
                             </div>
                         </div>
@@ -486,105 +276,181 @@
         </div>
     </section>
 
-    <!-- Under the hood -->
-    <section class="py-16 bg-gray-50 border-t border-gray-100">
-        <div class="container mx-auto px-6">
-            <div class="text-center mb-10 reveal">
-                <h2 class="text-2xl font-bold text-gray-900 mb-2">Under the hood</h2>
-                <p class="text-gray-500">Production-grade engineering, not just a prototype</p>
-            </div>
-            <div class="flex flex-wrap justify-center gap-3 reveal">
-                <span class="badge badge-lg badge-outline gap-1.5 bg-white"><i class="ri-code-s-slash-line"></i> Python · FastAPI</span>
-                <span class="badge badge-lg badge-outline gap-1.5 bg-white"><i class="ri-brain-line"></i> scikit-learn</span>
-                <span class="badge badge-lg badge-outline gap-1.5 bg-white"><i class="ri-scan-2-line"></i> Tesseract OCR</span>
-                <span class="badge badge-lg badge-outline gap-1.5 bg-white"><i class="ri-database-2-line"></i> SQLite · SQLAlchemy</span>
-                <span class="badge badge-lg badge-outline gap-1.5 bg-white"><i class="ri-test-tube-line"></i> 109 Pytest tests</span>
-                <span class="badge badge-lg badge-outline gap-1.5 bg-white"><i class="ri-box-3-line"></i> Docker Compose</span>
-                <span class="badge badge-lg badge-outline gap-1.5 bg-white"><i class="ri-shield-check-line"></i> Hardened Linux · HTTPS</span>
-            </div>
-        </div>
-    </section>
-
-    <!-- CTA -->
-    <section class="py-20 gradient-primary text-white relative overflow-hidden">
-        <div class="blob" style="width:300px;height:300px;background:#fff;opacity:.08;top:-80px;right:-60px;"></div>
-        <div class="container mx-auto px-6 text-center reveal relative z-10">
-            <h2 class="text-4xl font-bold mb-6">Ready to Get Started?</h2>
-            <p class="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-                Create an account and start managing invoices smarter — or read the code on GitHub.
-            </p>
-            <div class="flex flex-wrap gap-4 justify-center">
-                <a href="/register" class="btn btn-lg bg-white text-blue-600 hover:bg-blue-50 gap-2 hover:scale-105 transition-transform">
-                    <i class="ri-user-add-line"></i> Create Free Account
-                </a>
-                <a href="https://github.com/gufran0007/smartpay" target="_blank" rel="noopener" class="btn btn-lg btn-outline border-white text-white hover:bg-white hover:text-blue-600 gap-2 hover:scale-105 transition-transform">
-                    <i class="ri-github-fill"></i> View on GitHub
-                </a>
+    <!-- ───────── CTA ───────── -->
+    <section class="bg-[#1A1916] text-[#F6F5F1]">
+        <div class="container mx-auto px-6 py-20 lg:py-24">
+            <div class="max-w-3xl reveal">
+                <h2 class="font-display text-4xl sm:text-5xl font-semibold mb-5 leading-[1.05]">Start managing invoices smarter</h2>
+                <p class="text-lg text-[#B9B6AE] mb-9 max-w-xl">
+                    Create a free account and see which of your invoices need attention first — or read the full source on GitHub.
+                </p>
+                <div class="flex flex-wrap items-center gap-3">
+                    <a href="/register" class="inline-flex items-center gap-2 bg-[#12B886] hover:bg-[#0E7C5A] text-[#0a1410] font-semibold rounded-full px-7 py-3.5 transition hover:-translate-y-0.5">
+                        Get started <i class="ri-arrow-right-line"></i>
+                    </a>
+                    <a href="https://github.com/gufran0007/smartpay" target="_blank" rel="noopener" class="inline-flex items-center gap-2 text-[#F6F5F1] font-semibold rounded-full px-6 py-3.5 border border-white/25 hover:border-white/60 transition">
+                        <i class="ri-github-fill"></i> View source
+                    </a>
+                </div>
             </div>
         </div>
     </section>
 
-    <!-- Guest Footer -->
-    <footer class="bg-gray-900 text-white py-8">
-        <div class="container mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-gray-400 text-sm">
-            <span>© 2026 Smart Pay — Built with FastAPI and Python by Ghufran Aslam</span>
+    <!-- ───────── Footer ───────── -->
+    <footer class="bg-[#1A1916] text-[#8A877F] border-t border-white/10">
+        <div class="container mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm">
+            <div class="flex flex-col sm:flex-row items-center gap-x-4 gap-y-1 text-center sm:text-left">
+                <span class="text-[#B9B6AE] font-semibold">SmartPay</span>
+                <span>Built with FastAPI &amp; Python by Ghufran Aslam · © 2026</span>
+            </div>
             <div class="flex items-center gap-4">
-                <a href="https://github.com/gufran0007/smartpay" target="_blank" rel="noopener" class="hover:text-white transition"><i class="ri-github-fill text-lg"></i></a>
-                <a href="https://www.linkedin.com/in/ghufran-aslama6034b32fd321" target="_blank" rel="noopener" class="hover:text-white transition"><i class="ri-linkedin-box-fill text-lg"></i></a>
+                <a href="https://github.com/gufran0007/smartpay" target="_blank" rel="noopener" class="hover:text-white transition" aria-label="GitHub"><i class="ri-github-fill text-lg"></i></a>
+                <a href="https://www.linkedin.com/in/ghufran-aslama6034b32fd321" target="_blank" rel="noopener" class="hover:text-white transition" aria-label="LinkedIn"><i class="ri-linkedin-box-fill text-lg"></i></a>
             </div>
         </div>
     </footer>
 
-    <!-- guest-view scripts -->
+    </div><!-- /landing -->
+
+    <!-- ───────── guest scripts ───────── -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // scroll reveal (staggered)
-        const obs = new IntersectionObserver((entries) => {
-            entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } });
-        }, { threshold: 0.15 });
-        document.querySelectorAll('.reveal, .reveal-left, .reveal-scale, .step-line').forEach(el => obs.observe(el));
+    (function () {
+        const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-        // count-up numbers
-        const counters = document.querySelectorAll('[data-count]');
-        const countObs = new IntersectionObserver((entries) => {
-            entries.forEach(e => {
-                if (!e.isIntersecting) return;
-                const el = e.target, target = +el.dataset.count, dur = 1400, t0 = performance.now();
-                const step = (t) => {
-                    const p = Math.min((t - t0) / dur, 1);
-                    el.textContent = Math.floor(target * (1 - Math.pow(1 - p, 3))).toLocaleString();
-                    if (p < 1) requestAnimationFrame(step);
-                };
-                requestAnimationFrame(step);
-                countObs.unobserve(el);
-            });
-        }, { threshold: 0.6 });
-        counters.forEach(el => countObs.observe(el));
+        /* ── scroll reveals ── */
+        const io = new IntersectionObserver((entries) => {
+            entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); } });
+        }, { threshold: 0.18 });
+        document.querySelectorAll('.reveal, .step-connect').forEach(el => io.observe(el));
 
-        // 3D mouse tilt on hero card
-        const card = document.getElementById('tiltCard');
-        const wrap = card?.closest('.tilt-wrap');
-        if (card && wrap && matchMedia('(pointer:fine)').matches) {
-            wrap.addEventListener('mousemove', (ev) => {
-                const r = wrap.getBoundingClientRect();
-                const x = (ev.clientX - r.left) / r.width - 0.5;
-                const y = (ev.clientY - r.top) / r.height - 0.5;
-                card.style.transform = `rotateY(${x * 10}deg) rotateX(${ -y * 8 }deg)`;
-            });
-            wrap.addEventListener('mouseleave', () => { card.style.transform = ''; });
+        /* ── three.js hero scene ── */
+        const mount = document.getElementById('heroCanvas');
+        const fallback = document.getElementById('heroFallback');
+        if (prefersReduced || !mount || typeof THREE === 'undefined') return; // keep CSS fallback
+
+        let renderer;
+        try {
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        } catch (err) {
+            return; // WebGL unavailable — keep CSS fallback
         }
 
-        // parallax blobs on scroll
-        const blobs = document.querySelectorAll('[data-parallax]');
-        let ticking = false;
-        window.addEventListener('scroll', () => {
-            if (ticking) return;
-            ticking = true;
-            requestAnimationFrame(() => {
-                const y = window.scrollY;
-                blobs.forEach(b => { b.style.transform = `translateY(${y * b.dataset.parallax}px)`; });
-                ticking = false;
-            });
+        let W = mount.clientWidth, H = mount.clientHeight;
+        if (!W || !H) return;
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.setSize(W, H);
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        mount.appendChild(renderer.domElement);
+        if (fallback) fallback.style.display = 'none';
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 100);
+        camera.position.set(0, 0, 15);
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+        const key = new THREE.DirectionalLight(0xffffff, 0.65); key.position.set(6, 10, 12); scene.add(key);
+        const rim = new THREE.DirectionalLight(0x12b886, 0.22); rim.position.set(-9, -5, 5); scene.add(rim);
+
+        const group = new THREE.Group();
+        group.rotation.z = 0.05;
+        scene.add(group);
+
+        const COL = { paid: 0x0e7c5a, risk: 0xc2613b, neutral: 0xd9d6ce };
+        function makeCard(state) {
+            const g = new THREE.Group();
+            const w = 2.1, h = 2.75, d = 0.1;
+            g.add(new THREE.Mesh(
+                new THREE.BoxGeometry(w, h, d),
+                new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, metalness: 0.0 })
+            ));
+            const accent = COL[state];
+            const strip = new THREE.Mesh(
+                new THREE.BoxGeometry(w, 0.46, d + 0.02),
+                new THREE.MeshStandardMaterial({ color: accent, roughness: 0.45, emissive: accent, emissiveIntensity: 0.18 })
+            );
+            strip.position.set(0, h / 2 - 0.33, 0.01);
+            g.add(strip);
+            const lineMat = new THREE.MeshStandardMaterial({ color: 0xe7e5df, roughness: 0.85 });
+            for (let i = 0; i < 4; i++) {
+                const lw = 1.5 - i * 0.22;
+                const ln = new THREE.Mesh(new THREE.BoxGeometry(lw, 0.13, d + 0.01), lineMat);
+                ln.position.set(-(1.5 - lw) / 2, 0.35 - i * 0.5, 0.06);
+                g.add(ln);
+            }
+            return g;
+        }
+
+        const layout = ['paid', 'risk', 'neutral', 'paid', 'neutral', 'risk', 'paid', 'risk', 'neutral', 'paid', 'neutral', 'risk'];
+        const cards = [];
+        const N = layout.length;
+        for (let i = 0; i < N; i++) {
+            const st = layout[i];
+            const c = makeCard(st);
+            const lane = st === 'paid' ? 3.0 : st === 'risk' ? -3.0 : (Math.random() * 1.4 - 0.7);
+            c.userData = {
+                x: lane,
+                speed: 0.55 + Math.random() * 0.5,
+                sway: Math.random() * Math.PI * 2
+            };
+            c.position.set(lane, (i / N) * 18 - 9, -1 - Math.random() * 5);
+            c.scale.setScalar(0.7 + Math.random() * 0.45);
+            group.add(c);
+            cards.push(c);
+        }
+
+        /* pointer parallax */
+        let tmx = 0, tmy = 0, mx = 0, my = 0;
+        if (window.matchMedia('(pointer:fine)').matches) {
+            window.addEventListener('mousemove', (e) => {
+                tmx = e.clientX / window.innerWidth - 0.5;
+                tmy = e.clientY / window.innerHeight - 0.5;
+            }, { passive: true });
+        }
+
+        const clock = new THREE.Clock();
+        let elapsed = 0, rafId = null, running = false;
+        function render() {
+            const dt = Math.min(clock.getDelta(), 0.05);
+            elapsed += dt;
+            const t = elapsed;
+            for (const c of cards) {
+                const u = c.userData;
+                c.position.y += u.speed * dt * 1.4;
+                if (c.position.y > 10.5) c.position.y = -10.5;
+                c.position.x = u.x + Math.sin(t * 0.45 + u.sway) * 0.3;
+                c.rotation.y = Math.sin(t * 0.4 + u.sway) * 0.4 - 0.08;
+                c.rotation.x = Math.sin(t * 0.32 + u.sway) * 0.12;
+            }
+            mx += (tmx - mx) * 0.05; my += (tmy - my) * 0.05;
+            camera.position.x = mx * 2.4;
+            camera.position.y = -my * 1.6;
+            camera.lookAt(0, 0, 0);
+            renderer.render(scene, camera);
+            rafId = requestAnimationFrame(render);
+        }
+        function start() { if (running) return; running = true; clock.start(); render(); }
+        function stop() { running = false; if (rafId) cancelAnimationFrame(rafId); rafId = null; }
+
+        /* pause when the hero scrolls out of view */
+        const vis = new IntersectionObserver((entries) => {
+            entries.forEach(e => e.isIntersecting ? start() : stop());
+        }, { threshold: 0.05 });
+        vis.observe(mount);
+
+        /* responsive resize */
+        let rt;
+        window.addEventListener('resize', () => {
+            clearTimeout(rt);
+            rt = setTimeout(() => {
+                W = mount.clientWidth; H = mount.clientHeight;
+                if (!W || !H) return;
+                camera.aspect = W / H;
+                camera.updateProjectionMatrix();
+                renderer.setSize(W, H);
+            }, 150);
         }, { passive: true });
+    })();
     </script>
 
 
