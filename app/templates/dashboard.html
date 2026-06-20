@@ -50,40 +50,48 @@
         .step-connect::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: #0E7C5A; transition: width 1.5s cubic-bezier(.2,.7,.2,1); }
         .step-connect.is-in::after { width: 100%; }
 
+        /* ════════ Logged-in dashboard (Ledger palette · data-dense) ════════ */
+        .dash-card { background:#fff; border:1px solid #E7E5DF; border-radius:18px; box-shadow:0 1px 2px rgba(26,25,22,.04); }
+        .dash-card-h { transition: box-shadow .25s ease, transform .25s ease, border-color .25s ease; }
+        .dash-card-h:hover { box-shadow:0 18px 40px -24px rgba(26,25,22,.30); transform:translateY(-2px); border-color:#DCD9D1; }
+        .dash-navlink { display:inline-flex; align-items:center; gap:6px; font-size:14px; font-weight:500; color:#56544D; padding:8px 12px; border-radius:9999px; transition:color .2s ease, background .2s ease; }
+        .dash-navlink:hover { color:#1A1916; background:rgba(14,124,90,.08); }
+        .tnum { font-variant-numeric: tabular-nums; font-feature-settings:"tnum"; }
+        .dash-rise { animation: dashRise .6s cubic-bezier(.2,.7,.2,1) both; }
+        @keyframes dashRise { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
+        .ring { position:relative; width:58px; height:58px; border-radius:50%;
+            background: conic-gradient(#0E7C5A calc(var(--p,0)*1%), #ECEAE3 0); display:grid; place-items:center; flex:none; }
+        .ring::before { content:""; position:absolute; width:44px; height:44px; border-radius:50%; background:#fff; }
+        .ring > span { position:relative; z-index:1; font-size:12px; font-weight:700; color:#1A1916; }
+        .seg { height:8px; border-radius:6px; overflow:hidden; display:flex; background:#ECEAE3; }
+        .seg > i { display:block; height:100%; }
+
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { animation: none !important; transition: none !important; }
             .reveal { opacity: 1 !important; transform: none !important; filter: none !important; }
         }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-[#F6F5F1] min-h-screen">
 
     <!-- ═══════════ NAVIGATION — changes based on login state ═══════════ -->
-    <nav class="sticky top-0 z-50 {% if current_user %}bg-gradient-to-r from-blue-600 to-teal-600 text-white shadow-lg{% else %}bg-[#F6F5F1]/85 backdrop-blur border-b border-[#E7E5DF] text-[#1A1916]{% endif %}">
+    <nav class="sticky top-0 z-50 bg-[#F6F5F1]/85 backdrop-blur border-b border-[#E7E5DF] text-[#1A1916]">
         <div class="container mx-auto px-4 py-3">
             <div class="flex justify-between items-center">
                 <a href="/" class="flex items-center gap-2">
-                    <i class="ri-file-invoice-dollar-line text-2xl"></i>
+                    <i class="ri-file-invoice-dollar-line text-2xl text-[#0E7C5A]"></i>
                     <span class="text-xl font-bold">Smart Pay</span>
                 </a>
                 <div class="flex items-center gap-2">
                     {% if current_user %}
-                        <a href="/upload" class="btn btn-sm btn-outline border-white text-white hover:bg-white hover:text-blue-600">
-                            <i class="ri-upload-cloud-line"></i> Upload
-                        </a>
-                        <a href="/ml/analytics" class="btn btn-sm btn-outline border-white text-white hover:bg-white hover:text-blue-600">
-                            <i class="ri-brain-line"></i> ML Analytics
-                        </a>
-                        <a href="/customers" class="btn btn-sm btn-outline border-white text-white hover:bg-white hover:text-blue-600">
-                            <i class="ri-group-line"></i> Customers
-                        </a>
-                        <div class="hidden sm:flex items-center gap-2 ml-2 px-3 py-1 bg-white/10 rounded-full">
-                            <i class="ri-user-line text-sm"></i>
+                        <a href="/upload" class="dash-navlink hidden sm:inline-flex"><i class="ri-upload-cloud-line"></i> Upload</a>
+                        <a href="/ml/analytics" class="dash-navlink hidden sm:inline-flex"><i class="ri-brain-line"></i> ML Analytics</a>
+                        <a href="/customers" class="dash-navlink hidden sm:inline-flex"><i class="ri-group-line"></i> Customers</a>
+                        <div class="hidden md:flex items-center gap-2 ml-1 px-3 py-1.5 rounded-full border border-[#E7E5DF] bg-white/60 text-[#56544D]">
+                            <span class="w-6 h-6 rounded-full bg-[#0E7C5A]/10 flex items-center justify-center"><i class="ri-user-line text-xs text-[#0E7C5A]"></i></span>
                             <span class="text-sm">{{ current_user.email }}</span>
                         </div>
-                        <a href="/logout" class="btn btn-sm bg-white/20 border-white/30 text-white hover:bg-white hover:text-red-600">
-                            <i class="ri-logout-box-r-line"></i> Logout
-                        </a>
+                        <a href="/logout" class="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1A1916] hover:text-[#C2613B] transition px-3 py-2"><i class="ri-logout-box-r-line"></i> Logout</a>
                     {% else %}
                         <a href="https://github.com/gufran0007/smartpay" target="_blank" rel="noopener" class="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-[#56544D] hover:text-[#1A1916] transition">
                             <i class="ri-github-fill text-base"></i> Source
@@ -460,173 +468,263 @@
     <!-- ═══════════════════════════════════════════════════════════════ -->
 
     <main class="container mx-auto px-6 py-8">
-        <div class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p class="text-gray-500">AI-powered invoice management and payment prediction</p>
-        </div>
 
-        <!-- Stats Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div class="bg-white rounded-2xl shadow-sm p-6">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-500 text-sm">Total Invoices</p>
-                        <p class="text-3xl font-bold text-gray-900">{{ total_invoices }}</p>
-                    </div>
-                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                        <i class="ri-file-list-3-line text-blue-600 text-xl"></i>
-                    </div>
+        <!-- Welcome banner (header) -->
+        <section class="dash-card dash-rise relative overflow-hidden mb-7">
+            <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1600&q=80" alt="" class="absolute inset-0 w-full h-full object-cover">
+            <div class="absolute inset-0" style="background:linear-gradient(100deg,#13322a 0%,rgba(14,124,90,.88) 44%,rgba(14,124,90,.32) 100%);"></div>
+            <div class="relative px-6 py-8 sm:px-9 sm:py-10 text-white">
+                <span class="inline-flex items-center gap-2 text-[11px] font-semibold tracking-[0.2em] uppercase text-white/80 mb-3">
+                    <span class="w-2 h-2 rounded-full" style="background:#7ce0bd"></span> Live overview
+                </span>
+                <h1 class="font-display text-3xl sm:text-4xl font-semibold mb-2">Welcome back</h1>
+                <p class="text-white/85 max-w-xl mb-6 text-sm sm:text-base">{{ current_user.email }} — here's how your invoices and customers are tracking today.</p>
+                <div class="flex flex-wrap gap-3">
+                    <a href="/upload" class="inline-flex items-center gap-2 bg-white text-[#0E7C5A] font-semibold rounded-full px-5 py-2.5 text-sm hover:bg-[#F6F5F1] transition"><i class="ri-upload-cloud-line"></i> Upload invoice</a>
+                    <a href="/ml/analytics" class="inline-flex items-center gap-2 border border-white/40 text-white font-semibold rounded-full px-5 py-2.5 text-sm hover:bg-white/10 transition"><i class="ri-brain-line"></i> View insights</a>
                 </div>
             </div>
-            <div class="bg-white rounded-2xl shadow-sm p-6">
-                <div class="flex items-center justify-between">
+        </section>
+
+        {# real-data splits for the KPI mini-charts #}
+        {% set _pt = paid_on_time | default(0) %}
+        {% set _lt = paid_late | default(0) %}
+        {% set _np = not_paid | default(0) %}
+        {% set _ptot = _pt + _lt + _np %}
+        {% set _lr = low_risk_count | default(0) %}
+        {% set _mr = medium_risk_count | default(0) %}
+        {% set _hr = high_risk_count | default(0) %}
+        {% set _ctot = _lr + _mr + _hr %}
+
+        <!-- KPI cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-7">
+
+            <!-- Total invoices -->
+            <div class="dash-card dash-card-h dash-rise p-5">
+                <div class="flex items-start justify-between mb-4">
                     <div>
-                        <p class="text-gray-500 text-sm">Total Customers</p>
-                        <p class="text-3xl font-bold text-gray-900">{{ total_customers }}</p>
+                        <p class="text-[#807D75] text-sm">Total Invoices</p>
+                        <p class="font-display text-4xl font-semibold text-[#1A1916] tnum mt-1">{{ total_invoices }}</p>
                     </div>
-                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                        <i class="ri-group-line text-green-600 text-xl"></i>
-                    </div>
+                    <span class="w-10 h-10 rounded-xl bg-[#0E7C5A]/10 flex items-center justify-center"><i class="ri-file-list-3-line text-[#0E7C5A] text-lg"></i></span>
+                </div>
+                <div class="seg mb-2">
+                    <i style="width: {{ ((_pt/_ptot*100)|round(2)) if _ptot else 0 }}%; background:#0E7C5A"></i>
+                    <i style="width: {{ ((_lt/_ptot*100)|round(2)) if _ptot else 0 }}%; background:#D29B3A"></i>
+                    <i style="width: {{ ((_np/_ptot*100)|round(2)) if _ptot else 0 }}%; background:#C2613B"></i>
+                </div>
+                <div class="flex items-center gap-3 text-[11px] text-[#807D75]">
+                    <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#0E7C5A"></span>On time {{ _pt }}</span>
+                    <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#D29B3A"></span>Late {{ _lt }}</span>
+                    <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#C2613B"></span>Unpaid {{ _np }}</span>
                 </div>
             </div>
-            <div class="bg-white rounded-2xl shadow-sm p-6">
-                <div class="flex items-center justify-between">
+
+            <!-- Customers -->
+            <div class="dash-card dash-card-h dash-rise p-5" style="animation-delay:.06s">
+                <div class="flex items-start justify-between mb-4">
                     <div>
-                        <p class="text-gray-500 text-sm">High Risk</p>
-                        <p class="text-3xl font-bold text-red-600">{{ high_risk_count }}</p>
+                        <p class="text-[#807D75] text-sm">Customers</p>
+                        <p class="font-display text-4xl font-semibold text-[#1A1916] tnum mt-1">{{ total_customers }}</p>
                     </div>
-                    <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                        <i class="ri-alert-line text-red-600 text-xl"></i>
-                    </div>
+                    <span class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:rgba(26,25,22,.06)"><i class="ri-group-line text-[#1A1916] text-lg"></i></span>
+                </div>
+                <div class="seg mb-2">
+                    <i style="width: {{ ((_lr/_ctot*100)|round(2)) if _ctot else 0 }}%; background:#0E7C5A"></i>
+                    <i style="width: {{ ((_mr/_ctot*100)|round(2)) if _ctot else 0 }}%; background:#D29B3A"></i>
+                    <i style="width: {{ ((_hr/_ctot*100)|round(2)) if _ctot else 0 }}%; background:#C2613B"></i>
+                </div>
+                <div class="flex items-center gap-3 text-[11px] text-[#807D75]">
+                    <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#0E7C5A"></span>Low {{ _lr }}</span>
+                    <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#D29B3A"></span>Med {{ _mr }}</span>
+                    <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#C2613B"></span>High {{ _hr }}</span>
                 </div>
             </div>
-            <div class="bg-white rounded-2xl shadow-sm p-6">
-                <div class="flex items-center justify-between">
+
+            <!-- High risk -->
+            <div class="dash-card dash-card-h dash-rise p-5" style="animation-delay:.12s">
+                <div class="flex items-start justify-between mb-4">
                     <div>
-                        <p class="text-gray-500 text-sm">Avg Reliability</p>
-                        <p class="text-3xl font-bold text-purple-600">{{ avg_reliability }}%</p>
+                        <p class="text-[#807D75] text-sm">High Risk</p>
+                        <p class="font-display text-4xl font-semibold text-[#C2613B] tnum mt-1">{{ high_risk_count }}</p>
                     </div>
-                    <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                        <i class="ri-percent-line text-purple-600 text-xl"></i>
+                    <span class="w-10 h-10 rounded-xl bg-[#C2613B]/10 flex items-center justify-center"><i class="ri-alert-line text-[#C2613B] text-lg"></i></span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#C2613B] bg-[#C2613B]/10 rounded-full px-2.5 py-1"><i class="ri-error-warning-line"></i> Needs attention</span>
+                    <span class="text-[11px] text-[#807D75] tnum">{{ ((_hr/_ctot*100)|round)|int if _ctot else 0 }}% of customers</span>
+                </div>
+            </div>
+
+            <!-- Avg reliability -->
+            <div class="dash-card dash-card-h dash-rise p-5" style="animation-delay:.18s">
+                <div class="flex items-start justify-between mb-4">
+                    <div>
+                        <p class="text-[#807D75] text-sm">Avg Reliability</p>
+                        <p class="font-display text-4xl font-semibold text-[#0E7C5A] tnum mt-1">{{ avg_reliability }}%</p>
                     </div>
+                    <div class="ring" style="--p: {{ avg_reliability | default(0) }}"><span class="tnum">{{ avg_reliability }}</span></div>
+                </div>
+                <div class="flex items-center justify-between">
+                    {% if (avg_reliability | default(0)) >= 70 %}
+                    <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0E7C5A] bg-[#0E7C5A]/10 rounded-full px-2.5 py-1"><i class="ri-shield-check-line"></i> Healthy</span>
+                    {% else %}
+                    <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#D29B3A] bg-[#D29B3A]/20 rounded-full px-2.5 py-1"><i class="ri-shield-line"></i> Watch</span>
+                    {% endif %}
+                    <span class="text-[11px] text-[#807D75]">portfolio health</span>
                 </div>
             </div>
         </div>
 
         <!-- Charts -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <div class="bg-white rounded-2xl shadow-sm p-6">
-                <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <i class="ri-pie-chart-line text-blue-600"></i> Customer Risk Distribution
-                </h2>
-                <div class="h-64">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-7">
+            <div class="dash-card dash-rise p-6">
+                <h2 class="font-display text-xl font-semibold text-[#1A1916] flex items-center gap-2"><i class="ri-donut-chart-line text-[#0E7C5A]"></i> Customer Risk Distribution</h2>
+                <p class="text-sm text-[#807D75] mb-4">How your customers split across risk levels.</p>
+                <div class="h-60">
                     <canvas id="riskPieChart"></canvas>
                 </div>
+                <div class="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-[#F0EEE8] text-center">
+                    <div><div class="text-[11px] text-[#807D75] mb-0.5">Low</div><div class="font-semibold text-[#0E7C5A] tnum">{{ _lr }}</div></div>
+                    <div><div class="text-[11px] text-[#807D75] mb-0.5">Medium</div><div class="font-semibold text-[#D29B3A] tnum">{{ _mr }}</div></div>
+                    <div><div class="text-[11px] text-[#807D75] mb-0.5">High</div><div class="font-semibold text-[#C2613B] tnum">{{ _hr }}</div></div>
+                </div>
             </div>
-            <div class="bg-white rounded-2xl shadow-sm p-6">
-                <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <i class="ri-bar-chart-line text-green-600"></i> Payment Behavior
-                </h2>
-                <div class="h-64">
+            <div class="dash-card dash-rise p-6" style="animation-delay:.08s">
+                <h2 class="font-display text-xl font-semibold text-[#1A1916] flex items-center gap-2"><i class="ri-bar-chart-2-line text-[#0E7C5A]"></i> Payment Behavior</h2>
+                <p class="text-sm text-[#807D75] mb-4">On-time vs late vs unpaid invoices.</p>
+                <div class="h-60">
                     <canvas id="paymentBarChart"></canvas>
+                </div>
+                <div class="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-[#F0EEE8] text-center">
+                    <div><div class="text-[11px] text-[#807D75] mb-0.5">On time</div><div class="font-semibold text-[#0E7C5A] tnum">{{ _pt }}</div></div>
+                    <div><div class="text-[11px] text-[#807D75] mb-0.5">Late</div><div class="font-semibold text-[#D29B3A] tnum">{{ _lt }}</div></div>
+                    <div><div class="text-[11px] text-[#807D75] mb-0.5">Not paid</div><div class="font-semibold text-[#C2613B] tnum">{{ _np }}</div></div>
                 </div>
             </div>
         </div>
 
-        <!-- Quick Actions & High Risk -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white rounded-2xl shadow-sm p-6">
-                <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <i class="ri-flashlight-line text-amber-500"></i> Quick Actions
-                </h2>
-                <div class="space-y-3">
-                    <a href="/upload" class="btn btn-primary w-full gap-2">
-                        <i class="ri-upload-cloud-line"></i> Upload Invoice
-                    </a>
-                    <a href="/upload-csv" class="btn btn-outline w-full gap-2">
-                        <i class="ri-file-excel-line"></i> Upload CSV Data
-                    </a>
-                    <a href="/ml/train" class="btn btn-outline w-full gap-2">
-                        <i class="ri-brain-line"></i> Train ML Model
-                    </a>
-                    <a href="/view-data" class="btn btn-outline w-full gap-2">
-                        <i class="ri-table-line"></i> View All Invoices
-                    </a>
+        <!-- Quick actions + High risk -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-7">
+            <div class="dash-card dash-rise p-6">
+                <h2 class="font-display text-xl font-semibold text-[#1A1916] mb-4 flex items-center gap-2"><i class="ri-flashlight-line text-[#0E7C5A]"></i> Quick Actions</h2>
+                <div class="space-y-2.5">
+                    <a href="/upload" class="w-full inline-flex items-center gap-2.5 bg-[#0E7C5A] hover:bg-[#0c6b4d] text-white font-semibold rounded-xl px-4 py-3 transition"><i class="ri-upload-cloud-line text-lg"></i> Upload Invoice</a>
+                    <a href="/upload-csv" class="w-full inline-flex items-center gap-2.5 border border-[#E7E5DF] text-[#1A1916] font-medium rounded-xl px-4 py-3 hover:border-[#0E7C5A] hover:text-[#0E7C5A] hover:bg-[#0E7C5A]/5 transition"><i class="ri-file-excel-2-line text-lg text-[#807D75]"></i> Upload CSV Data</a>
+                    <a href="/ml/train" class="w-full inline-flex items-center gap-2.5 border border-[#E7E5DF] text-[#1A1916] font-medium rounded-xl px-4 py-3 hover:border-[#0E7C5A] hover:text-[#0E7C5A] hover:bg-[#0E7C5A]/5 transition"><i class="ri-brain-line text-lg text-[#807D75]"></i> Train ML Model</a>
+                    <a href="/view-data" class="w-full inline-flex items-center gap-2.5 border border-[#E7E5DF] text-[#1A1916] font-medium rounded-xl px-4 py-3 hover:border-[#0E7C5A] hover:text-[#0E7C5A] hover:bg-[#0E7C5A]/5 transition"><i class="ri-table-line text-lg text-[#807D75]"></i> View All Invoices</a>
                 </div>
             </div>
-            <div class="bg-white rounded-2xl shadow-sm p-6 lg:col-span-2">
-                <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <i class="ri-alert-line text-red-500"></i> High Risk Customers
-                </h2>
+            <div class="dash-card dash-rise p-6 lg:col-span-2" style="animation-delay:.08s">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="font-display text-xl font-semibold text-[#1A1916] flex items-center gap-2"><i class="ri-alert-line text-[#C2613B]"></i> High Risk Customers</h2>
+                    {% if high_risk_customers %}<span class="text-xs text-[#807D75]">Top {{ high_risk_customers[:5]|length }}</span>{% endif %}
+                </div>
                 {% if high_risk_customers %}
-                <div class="overflow-x-auto">
-                    <table class="table table-sm">
-                        <thead><tr><th>Customer</th><th>Invoices</th><th>Late</th><th>Reliability</th><th></th></tr></thead>
+                <div class="overflow-x-auto -mx-2 px-2">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-[#807D75] border-b border-[#E7E5DF]">
+                                <th class="font-medium pb-3 pr-3">Customer</th>
+                                <th class="font-medium pb-3 pr-3">Invoices</th>
+                                <th class="font-medium pb-3 pr-3">Late</th>
+                                <th class="font-medium pb-3 pr-3">Reliability</th>
+                                <th class="pb-3"></th>
+                            </tr>
+                        </thead>
                         <tbody>
                             {% for c in high_risk_customers[:5] %}
-                            <tr>
-                                <td class="font-medium">{{ c.name[:20] }}</td>
-                                <td>{{ c.total_invoices }}</td>
-                                <td class="text-red-600">{{ c.paid_late }}</td>
-                                <td>
-                                    <progress class="progress progress-error w-16" value="{{ (c.payment_reliability * 100)|int }}" max="100"></progress>
-                                    <span class="text-xs ml-1">{{ (c.payment_reliability * 100)|int }}%</span>
+                            <tr class="border-b border-[#F0EEE8] hover:bg-[#0E7C5A]/5 transition">
+                                <td class="py-3 pr-3 font-medium text-[#1A1916]">{{ c.name[:20] }}</td>
+                                <td class="py-3 pr-3 text-[#56544D] tnum">{{ c.total_invoices }}</td>
+                                <td class="py-3 pr-3 text-[#C2613B] font-medium tnum">{{ c.paid_late }}</td>
+                                <td class="py-3 pr-3">
+                                    <div class="flex items-center gap-2">
+                                        <span class="inline-block w-20 h-1.5 rounded-full bg-[#ECEAE3] overflow-hidden">
+                                            <span class="block h-full bg-[#C2613B]" style="width: {{ (c.payment_reliability * 100)|int }}%"></span>
+                                        </span>
+                                        <span class="text-xs text-[#56544D] tnum">{{ (c.payment_reliability * 100)|int }}%</span>
+                                    </div>
                                 </td>
-                                <td><a href="/customer-insights/{{ c.name }}" class="btn btn-xs btn-ghost"><i class="ri-eye-line"></i></a></td>
+                                <td class="py-3 text-right"><a href="/customer-insights/{{ c.name }}" aria-label="View {{ c.name }} insights" class="inline-flex w-8 h-8 items-center justify-center rounded-lg text-[#807D75] hover:text-[#0E7C5A] hover:bg-[#0E7C5A]/10 transition"><i class="ri-eye-line"></i></a></td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
-                <a href="/customers" class="btn btn-sm btn-outline mt-4 w-full">View All Customers</a>
+                <a href="/customers" class="mt-4 w-full inline-flex items-center justify-center gap-2 border border-[#E7E5DF] text-[#1A1916] font-medium rounded-xl px-4 py-2.5 hover:border-[#0E7C5A] hover:text-[#0E7C5A] transition text-sm">View all customers <i class="ri-arrow-right-line"></i></a>
                 {% else %}
-                <div class="text-center py-8 text-gray-500">
-                    <i class="ri-shield-check-line text-4xl text-green-500 mb-2"></i>
-                    <p>No high risk customers!</p>
+                <div class="text-center py-10">
+                    <span class="inline-flex w-14 h-14 rounded-2xl bg-[#0E7C5A]/10 items-center justify-center mb-3"><i class="ri-shield-check-line text-3xl text-[#0E7C5A]"></i></span>
+                    <p class="text-[#56544D] font-medium">No high-risk customers</p>
+                    <p class="text-sm text-[#807D75]">Your portfolio looks healthy.</p>
                 </div>
                 {% endif %}
             </div>
         </div>
 
-        <!-- Recent Invoices -->
-        <div class="bg-white rounded-2xl shadow-sm p-6">
+        <!-- AI insights promo -->
+        <section class="dash-card dash-rise overflow-hidden mb-7 grid md:grid-cols-2">
+            <div class="p-7 sm:p-9 order-2 md:order-1">
+                <span class="inline-flex items-center gap-2 text-[11px] font-semibold tracking-[0.2em] uppercase text-[#0E7C5A] mb-3"><span class="w-6 h-px bg-[#0E7C5A]"></span> AI insights</span>
+                <h2 class="font-display text-2xl sm:text-3xl font-semibold text-[#1A1916] mb-3">Chase the right invoices first</h2>
+                <p class="text-[#56544D] mb-6 max-w-md">SmartPay scores every invoice by payment risk and explains why — so you can focus your follow-ups where they matter and protect your cash flow.</p>
+                <a href="/ml/analytics" class="inline-flex items-center gap-2 bg-[#0E7C5A] hover:bg-[#0c6b4d] text-white font-semibold rounded-full px-6 py-3 transition"><i class="ri-line-chart-line"></i> Open analytics</a>
+            </div>
+            <div class="relative min-h-[200px] order-1 md:order-2">
+                <img src="https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1200&q=80" alt="" class="absolute inset-0 w-full h-full object-cover">
+                <div class="absolute inset-0 hidden md:block" style="background:linear-gradient(90deg,#fff 0%,rgba(255,255,255,.12) 46%,transparent 100%);"></div>
+                <div class="absolute inset-0 md:hidden" style="background:linear-gradient(0deg,#fff 0%,transparent 62%);"></div>
+            </div>
+        </section>
+
+        <!-- Recent invoices -->
+        <div class="dash-card dash-rise p-6">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    <i class="ri-time-line text-blue-500"></i> Recent Invoices
-                </h2>
-                <a href="/view-data" class="btn btn-sm btn-outline">View All</a>
+                <h2 class="font-display text-xl font-semibold text-[#1A1916] flex items-center gap-2"><i class="ri-time-line text-[#0E7C5A]"></i> Recent Invoices</h2>
+                <a href="/view-data" class="inline-flex items-center gap-1.5 text-sm font-medium text-[#56544D] hover:text-[#0E7C5A] transition">View all <i class="ri-arrow-right-line"></i></a>
             </div>
             {% if recent_invoices %}
-            <div class="overflow-x-auto">
-                <table class="table">
-                    <thead><tr><th>Invoice #</th><th>Customer</th><th>Amount</th><th>Due Date</th><th>Risk</th><th></th></tr></thead>
+            <div class="overflow-x-auto -mx-2 px-2">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left text-[#807D75] border-b border-[#E7E5DF]">
+                            <th class="font-medium pb-3 pr-3">Invoice #</th>
+                            <th class="font-medium pb-3 pr-3">Customer</th>
+                            <th class="font-medium pb-3 pr-3">Amount</th>
+                            <th class="font-medium pb-3 pr-3">Due Date</th>
+                            <th class="font-medium pb-3 pr-3">Risk</th>
+                            <th class="pb-3"></th>
+                        </tr>
+                    </thead>
                     <tbody>
                         {% for inv in recent_invoices %}
-                        <tr>
-                            <td class="font-medium">#{{ inv.invoice_number or inv.id }}</td>
-                            <td>{{ inv.customer_name if inv.customer_name and inv.customer_name != 'N/A' else '—' }}</td>
-                            <td>{{ inv.amount }} {{ inv.currency }}</td>
-                            <td>{{ inv.due_date if inv.due_date and inv.due_date != 'N/A' else '—' }}</td>
-                            <td>
+                        <tr class="border-b border-[#F0EEE8] hover:bg-[#0E7C5A]/5 transition">
+                            <td class="py-3 pr-3 font-medium text-[#1A1916]">#{{ inv.invoice_number or inv.id }}</td>
+                            <td class="py-3 pr-3 text-[#56544D]">{{ inv.customer_name if inv.customer_name and inv.customer_name != 'N/A' else '—' }}</td>
+                            <td class="py-3 pr-3 text-[#1A1916] tnum">{{ inv.amount }} {{ inv.currency }}</td>
+                            <td class="py-3 pr-3 text-[#56544D] tnum">{{ inv.due_date if inv.due_date and inv.due_date != 'N/A' else '—' }}</td>
+                            <td class="py-3 pr-3">
                                 {% if inv.features and inv.features.predicted_label == 1 %}
-                                <span class="badge badge-error badge-sm">High</span>
+                                <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#C2613B] bg-[#C2613B]/10 rounded-full px-2.5 py-1"><span class="w-1.5 h-1.5 rounded-full bg-[#C2613B]"></span> High</span>
                                 {% elif inv.features and inv.features.predicted_label == 0 %}
-                                <span class="badge badge-success badge-sm">Low</span>
+                                <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0E7C5A] bg-[#0E7C5A]/10 rounded-full px-2.5 py-1"><span class="w-1.5 h-1.5 rounded-full bg-[#0E7C5A]"></span> Low</span>
                                 {% else %}
-                                <span class="badge badge-ghost badge-sm">—</span>
+                                <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#807D75] bg-[#1A1916]/5 rounded-full px-2.5 py-1">—</span>
                                 {% endif %}
                             </td>
-                            <td><a href="/view-invoice/{{ inv.id }}" class="btn btn-xs btn-ghost"><i class="ri-eye-line"></i></a></td>
+                            <td class="py-3 text-right"><a href="/view-invoice/{{ inv.id }}" aria-label="View invoice" class="inline-flex w-8 h-8 items-center justify-center rounded-lg text-[#807D75] hover:text-[#0E7C5A] hover:bg-[#0E7C5A]/10 transition"><i class="ri-eye-line"></i></a></td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
             {% else %}
-            <div class="text-center py-12 text-gray-500">
-                <i class="ri-inbox-line text-5xl mb-4"></i>
-                <p>No invoices yet</p>
-                <a href="/upload" class="btn btn-primary mt-4">Upload Your First Invoice</a>
+            <div class="text-center py-12">
+                <span class="inline-flex w-16 h-16 rounded-2xl bg-[#1A1916]/5 items-center justify-center mb-4"><i class="ri-inbox-line text-4xl text-[#807D75]"></i></span>
+                <p class="text-[#56544D] font-medium mb-1">No invoices yet</p>
+                <p class="text-sm text-[#807D75] mb-5">Upload your first invoice to get started.</p>
+                <a href="/upload" class="inline-flex items-center gap-2 bg-[#0E7C5A] hover:bg-[#0c6b4d] text-white font-semibold rounded-full px-6 py-3 transition"><i class="ri-upload-cloud-line"></i> Upload Your First Invoice</a>
             </div>
             {% endif %}
         </div>
@@ -644,18 +742,18 @@
             type: 'doughnut',
             data: {
                 labels: ['Low Risk', 'Medium Risk', 'High Risk'],
-                datasets: [{ data: [lowRisk, mediumRisk, highRisk], backgroundColor: ['#22c55e', '#f59e0b', '#ef4444'] }]
+                datasets: [{ data: [lowRisk, mediumRisk, highRisk], backgroundColor: ['#0E7C5A', '#D29B3A', '#C2613B'], borderColor: '#ffffff', borderWidth: 3, hoverOffset: 6 }]
             },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            options: { responsive: true, maintainAspectRatio: false, cutout: '66%', plugins: { legend: { position: 'bottom', labels: { color: '#56544D', usePointStyle: true, pointStyle: 'circle', padding: 16, font: { family: 'Inter', size: 12 } } } } }
         });
 
         new Chart(document.getElementById('paymentBarChart'), {
             type: 'bar',
             data: {
                 labels: ['On Time', 'Late', 'Not Paid'],
-                datasets: [{ data: [onTime, late, unpaid], backgroundColor: ['#22c55e', '#f59e0b', '#ef4444'] }]
+                datasets: [{ data: [onTime, late, unpaid], backgroundColor: ['#0E7C5A', '#D29B3A', '#C2613B'], borderRadius: 8, maxBarThickness: 56 }]
             },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#EDEBE4' }, ticks: { color: '#807D75', font: { family: 'Inter' } } }, x: { grid: { display: false }, ticks: { color: '#56544D', font: { family: 'Inter' } } } } }
         });
     </script>
 
