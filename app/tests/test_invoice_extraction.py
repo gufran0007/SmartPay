@@ -7,7 +7,8 @@ def extract_all(text):
     if not text: return data
 
     m = re.search(r'(?:invoice|inv)[:\s#]*([A-Z0-9\-]+)', text, re.I)
-    if m: data['invoice_number'] = m.group(1).strip()
+    if m and re.search(r'\d', m.group(1)):
+        data['invoice_number'] = m.group(1).strip()
 
     m = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
     if m: data['email'] = m.group(0)
