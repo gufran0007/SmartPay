@@ -8,6 +8,7 @@ from pathlib import Path
 _test_root = Path(tempfile.mkdtemp(prefix="smartpay_test_"))
 os.environ["DATABASE_URL"] = f"sqlite:///{(_test_root / 'test.db').as_posix()}"
 os.environ["UPLOAD_DIR"] = str(_test_root / "uploads")
+os.environ["MODELS_DIR"] = str(_test_root / "models")
 os.environ.setdefault("SESSION_SECRET", "test-secret-for-pytest-only")
 os.environ.setdefault("GMAIL_USER", "test@example.com")
 os.environ.setdefault("GMAIL_APP_PASSWORD", "test-password")
@@ -18,10 +19,21 @@ import pytest
 
 @pytest.fixture()
 def reset_db():
-    """Fresh schema for tests that exercise the real app/DB end-to-end."""
+    """Fresh schema for tests that exercise the real app/DB end-to-end.
+
+    Also clears any trained model files: drop_all/create_all resets
+    sqlite's autoincrement, so account ids get reused across tests, and a
+    stale payment_predictor_account_<id>.pkl left over from an earlier
+    test would otherwise silently load into a same-numbered account in a
+    later, unrelated test.
+    """
     from app.models.database import Base, engine
+    from app.services.paths import MODELS_DIR
+
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
+    for f in MODELS_DIR.glob("payment_predictor_account_*.pkl"):
+        f.unlink()
     yield
 
 

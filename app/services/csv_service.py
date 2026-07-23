@@ -39,113 +39,14 @@ class CSVService:
 
             cols_lower = [c.lower().strip() for c in df.columns]
 
-            # Detect format: IBM dataset, labeled dataset, or customer history
-            if 'dayslate' in cols_lower or 'daystosettle' in cols_lower or 'countrycode' in cols_lower:
-                self._load_ibm_dataset(df, csv_path.name)
-            elif 'invoice_id' in cols_lower or 'late_payment' in cols_lower or 'late payment' in cols_lower:
+            # Detect format: labeled dataset, or customer history
+            if 'invoice_id' in cols_lower or 'late_payment' in cols_lower or 'late payment' in cols_lower:
                 self._load_dataset_csv(df, csv_path.name)
             else:
                 self._load_customer_history_csv(df, csv_path.name)
 
         except Exception as e:
             print(f"Error loading {csv_path.name}: {e}")
-
-    # ── IBM FINANCE FACTORING FORMAT ──
-
-    def _load_ibm_dataset(self, df: pd.DataFrame, source: str):
-        """Load IBM Finance Factoring Late Payment dataset directly"""
-        try:
-            # Standardize column names (case-insensitive)
-            col_map = {}
-            for c in df.columns:
-                cl = c.lower().strip()
-                if cl in ('customerid', 'customer_id'):
-                    col_map[c] = 'customer_id'
-                elif cl in ('invoicenumber', 'invoice_number', 'invoice_id'):
-                    col_map[c] = 'invoice_id'
-                elif cl in ('invoiceamount', 'invoice_amount', 'amount'):
-                    col_map[c] = 'amount'
-                elif cl in ('countrycode', 'country_code', 'country'):
-                    col_map[c] = 'country'
-                elif cl in ('dayslate', 'days_late'):
-                    col_map[c] = 'days_late'
-                elif cl in ('daystosettle', 'days_to_settle'):
-                    col_map[c] = 'days_to_settle'
-                elif cl in ('disputed',):
-                    col_map[c] = 'disputed'
-                elif cl in ('invoicedate', 'invoice_date'):
-                    col_map[c] = 'invoice_date'
-                elif cl in ('duedate', 'due_date'):
-                    col_map[c] = 'due_date'
-                elif cl in ('settleddate', 'settled_date'):
-                    col_map[c] = 'settled_date'
-                elif cl in ('customer_name', 'customer name'):
-                    col_map[c] = 'customer_name'
-                elif cl in ('late_payment', 'late payment'):
-                    col_map[c] = 'late_payment'
-
-            df = df.rename(columns=col_map)
-
-            # Build customer name from ID if no name column
-            if 'customer_name' not in df.columns and 'customer_id' in df.columns:
-                df['customer_name'] = df['customer_id'].apply(self._id_to_company_name)
-
-            # Build late_payment label from days_late if missing
-            if 'late_payment' not in df.columns and 'days_late' in df.columns:
-                df['days_late'] = pd.to_numeric(df['days_late'], errors='coerce').fillna(0)
-                df['late_payment'] = (df['days_late'] > 0).astype(int)
-
-            # Process each row
-            for _, row in df.iterrows():
-                name = str(row.get('customer_name', '')).strip()
-                if not name or name.lower() in ('nan', 'none', ''):
-                    continue
-
-                self.dataset_records.append({
-                    'customer_name': name,
-                    'row': row.to_dict(),
-                    'source': source
-                })
-
-                # Init customer
-                if name not in self.customer_history:
-                    self.customer_history[name] = {
-                        'name': name,
-                        'company': str(row.get('country', '')),
-                        'email': '',
-                        'total_invoices': 0,
-                        'paid_on_time': 0,
-                        'paid_late': 0,
-                        'not_paid': 0,
-                        'total_amount': 0.0,
-                        'avg_payment_delay': 0.0,
-                        'payment_history': [],
-                        'risk_factors': []
-                    }
-
-                cust = self.customer_history[name]
-                cust['total_invoices'] += 1
-                cust['total_amount'] += self._safe_float(row.get('amount', 0))
-
-                # Payment status
-                late = int(row.get('late_payment', 0))
-                if late == 1:
-                    cust['paid_late'] += 1
-                    delay = self._safe_float(row.get('days_late', 0))
-                    if delay > 0:
-                        self._update_avg_delay(cust, delay)
-                else:
-                    cust['paid_on_time'] += 1
-
-                # Risk factors from IBM data
-                if row.get('disputed', 0) in (1, '1', 'Yes', 'yes', True):
-                    if 'Disputed invoice' not in cust['risk_factors']:
-                        cust['risk_factors'].append('Disputed invoice')
-
-            print(f"Loaded {len(df)} IBM dataset records from {source}")
-
-        except Exception as e:
-            print(f"Error processing IBM dataset: {e}")
 
     # ── LABELED DATASET (original Smart Pay format) ──
 
@@ -206,43 +107,6 @@ class CSVService:
     # ════════════════════════════════════════════════════════
     #  HELPERS
     # ════════════════════════════════════════════════════════
-
-    _COMPANY_NAMES = [
-        "Apex Trading", "Nova Solutions", "Prime Logistics", "Atlas Group", "Summit Corp",
-        "Vertex Industries", "Cascade Systems", "Meridian Tech", "Horizon Partners", "Sterling Co",
-        "Pinnacle Services", "Quantum Dynamics", "Falcon Enterprises", "Eclipse Holdings", "Vanguard Ltd",
-        "Nexus Global", "Titan Manufacturing", "Orion Consulting", "Phoenix Group", "Zenith Corp",
-        "Delta Partners", "Sierra Trading", "Cobalt Industries", "Pacific Ventures", "Alpine Solutions",
-        "Ember Technologies", "Crest Logistics", "Spark Innovations", "Forge Capital", "Ironbridge Ltd",
-        "Oakwood Partners", "Silverline Corp", "Bluewave Systems", "Redstone Group", "Greenfield Co",
-        "Nighthawk Trading", "Compass Enterprises", "Anchor Industries", "Lighthouse Solutions", "Beacon Corp",
-        "Trident Global", "Nordic Partners", "Coral Ventures", "Sapphire Holdings", "Marble Systems",
-        "Cedar Technologies", "Birchwood Ltd", "Hawthorn Group", "Rosewood Corp", "Ashford Trading",
-        "Kensington Partners", "Brighton Solutions", "Stratford Industries", "Windsor Logistics", "Cambridge Co",
-        "Oxford Holdings", "Bristol Dynamics", "Lancaster Group", "Sheffield Corp", "Coventry Ltd",
-        "Hartwell Partners", "Millbrook Trading", "Fairview Systems", "Ridgewood Corp", "Lakeside Solutions",
-        "Westgate Industries", "Eastwood Ventures", "Northfield Group", "Southbank Corp", "Hillcrest Co",
-        "Broadmoor Trading", "Clearwater Ltd", "Stonewall Partners", "Ferndale Corp", "Glenmore Systems",
-        "Riverton Holdings", "Moorfield Group", "Brookside Co", "Thornton Industries", "Ashbury Trading",
-        "Wentworth Corp", "Dalton Solutions", "Prescott Ventures", "Hanover Group", "Belmont Ltd",
-        "Carlton Partners", "Elmswood Trading", "Foxhill Corp", "Granville Systems", "Harrington Co",
-        "Ingram Holdings", "Jennings Group", "Kingsley Ltd", "Langford Partners", "Montague Corp",
-        "Newbury Trading", "Osborne Solutions", "Pemberton Ventures", "Radcliffe Group", "Sanderson Co",
-    ]
-    _id_map: Dict[str, str] = {}
-
-    def _id_to_company_name(self, customer_id) -> str:
-        """Map an anonymised customer ID to a consistent, readable company name"""
-        key = str(customer_id).strip()
-        if key in self._id_map:
-            return self._id_map[key]
-        idx = len(self._id_map) % len(self._COMPANY_NAMES)
-        name = self._COMPANY_NAMES[idx]
-        # If we've used all names, add a number suffix
-        if len(self._id_map) >= len(self._COMPANY_NAMES):
-            name = f"{name} {len(self._id_map) // len(self._COMPANY_NAMES) + 1}"
-        self._id_map[key] = name
-        return name
 
     def _extract_customer_name(self, row) -> Optional[str]:
         for col in ['customer name', 'customer_name', 'customer', 'client name', 'client', 'name', 'company name']:
@@ -335,9 +199,7 @@ class CSVService:
     def load_customer_data(self, df: pd.DataFrame, source: str = "upload"):
         cols_lower = [c.lower().strip() for c in df.columns]
 
-        if 'dayslate' in cols_lower or 'daystosettle' in cols_lower or 'countrycode' in cols_lower:
-            self._load_ibm_dataset(df, source)
-        elif 'invoice_id' in cols_lower or 'late_payment' in cols_lower or 'late payment' in cols_lower:
+        if 'invoice_id' in cols_lower or 'late_payment' in cols_lower or 'late payment' in cols_lower:
             self._load_dataset_csv(df, source)
         else:
             for _, row in df.iterrows():

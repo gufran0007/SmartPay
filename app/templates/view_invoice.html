@@ -140,6 +140,17 @@
                 </div>
             </div>
 
+            <div class="mt-4 text-sm text-gray-500 flex items-center gap-2">
+                {% if inv.features.prediction_mode == 'ml' %}
+                <span class="badge badge-sm badge-success">ML</span>
+                <span>Trained on {{ inv.features.model_invoices_seen }} paid invoices{% if inv.features.model_held_out_accuracy is not none %}, {{ (inv.features.model_held_out_accuracy * 100)|round(1) }}% held-out accuracy{% endif %}.</span>
+                {% elif inv.features.prediction_mode == 'heuristic' %}
+                <span class="badge badge-sm badge-warning">Heuristic</span>
+                <span>Not enough paid invoice history for ML yet ({{ inv.features.model_invoices_seen }} on file) — this is a payment-terms rule, not a learned prediction.</span>
+                {% endif %}
+                <a href="/ml/explain/{{ inv.id }}" class="text-blue-600 hover:underline">Why?</a>
+            </div>
+
             {% if inv.features.predicted_label == 1 %}
             <div class="mt-6 p-4 bg-red-50 rounded-xl border border-red-200">
                 <div class="flex items-start gap-3">

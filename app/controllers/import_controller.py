@@ -24,6 +24,7 @@ from app.services.invoice_import import (
     read_headers_and_sample, apply_mapping_and_import, error_report_csv,
     UnsupportedFileError,
 )
+from app.services.ml_service import MLService
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -151,6 +152,10 @@ async def import_confirm(request: Request, import_id: int, current_user: Current
         result = apply_mapping_and_import(db, current_user.account_id, Path(pending.file_path), mapping)
         pending.status = "confirmed"
         db.commit()
+
+        # Retrain immediately so new paid invoices are reflected without a
+        # separate manual step -- see Stage 3 (per-tenant prediction).
+        MLService(current_user.account_id).train(db)
 
         error_report_path = None
         if result.errors:

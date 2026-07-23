@@ -1,4 +1,10 @@
-"""Prediction Controller for Smart Pay"""
+"""Prediction Controller for Smart Pay
+
+Every route here is scoped to the current account's own MLService instance
+(app.services.ml_service.MLService) — its own paid invoices, its own model
+file, its own training run. Nothing here reads another account's data or a
+shared/reference dataset.
+"""
 from datetime import datetime, date
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
@@ -6,17 +12,10 @@ from fastapi.templating import Jinja2Templates
 
 from app.models.database import SessionLocal, InvoiceFeatures, Invoice
 from app.services.auth import require_account, CurrentUser
-from app.services.ml_service import MLService
-from app.services.csv_service import CSVService
-from app.services.paths import DATA_DIR, get_account_upload_dir
+from app.services.ml_service import MLService, MODE_HEURISTIC
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
-
-
-def _services_for(current_user: CurrentUser):
-    csv_service = CSVService(upload_dir=get_account_upload_dir(current_user.account_id))
-    return csv_service, MLService(csv_service=csv_service)
 
 
 def _parse_date(date_str):
@@ -35,27 +34,17 @@ def _days_overdue(due_date_str):
     return max(0, (date.today() - d).days)
 
 
-def _safe_amount(invoice):
-    try: return float(str(invoice.amount).replace(',','').replace('$','').replace('E','').replace('£',''))
-    except: return 0.0
-
-
 @router.get("/ml/train")
 def train_model(request: Request, current_user: CurrentUser = Depends(require_account)):
     db = SessionLocal()
     try:
-        _, ml_service = _services_for(current_user)
-        csv_files = list(DATA_DIR.glob("*.csv"))
-        csv_path = csv_files[0] if csv_files else None
-        count, message = ml_service.train_from_db(db, csv_path)
+        ml_service = MLService(current_user.account_id)
+        count, message = ml_service.train(db)
         return templates.TemplateResponse("ml_status.html", {
             "request": request, "current_user": current_user,
-            "message": message, "count": count, "success": count > 0
-        })
-    except Exception as e:
-        return templates.TemplateResponse("ml_status.html", {
-            "request": request, "current_user": current_user,
-            "message": f"Training failed: {e}", "count": 0, "success": False
+            "message": message, "count": count,
+            "success": ml_service.model is not None,
+            "mode": ml_service.get_model_info(db)["mode"],
         })
     finally:
         db.close()
@@ -69,40 +58,18 @@ def predict_payment(request: Request, invoice_id: int, current_user: CurrentUser
         if not invoice:
             return RedirectResponse("/view-data", status_code=303)
 
-        csv_service, ml_service = _services_for(current_user)
-        proba, label = ml_service.predict_for_invoice(db, invoice_id)
+        ml_service = MLService(current_user.account_id)
+        result = ml_service.predict(db, invoice)
 
-        # Overdue boost
-        overdue_days = _days_overdue(invoice.due_date)
-        if overdue_days > 0:
-            proba = min(1.0, proba + min(0.4, overdue_days * 0.01))
-            if proba > 0.5: label = 1
-
-        # Unknown customer adjustment
-        customer_match = csv_service.find_customer_match(invoice.customer_name or "")
-        if not customer_match:
-            proba = max(proba, 0.45)
-            due = _parse_date(invoice.due_date)
-            if due:
-                days_until = (due - date.today()).days
-                if days_until <= 0: proba = max(proba, 0.65)
-                elif days_until <= 3: proba = max(proba, 0.55)
-                elif days_until <= 7: proba = max(proba, 0.50)
-            else:
-                proba = max(proba, 0.50)
-            amt = _safe_amount(invoice)
-            if amt > 10000: proba = min(1.0, proba + 0.15)
-            elif amt > 5000: proba = min(1.0, proba + 0.10)
-            elif amt > 1000: proba = min(1.0, proba + 0.05)
-            label = 1 if proba > 0.5 else 0
-
-        # Save prediction
         features = db.query(InvoiceFeatures).filter(InvoiceFeatures.invoice_id == invoice_id).first()
-        if features:
-            features.predicted_probability = proba
-            features.predicted_label = label
-        else:
-            db.add(InvoiceFeatures(invoice_id=invoice_id, account_id=current_user.account_id, predicted_probability=proba, predicted_label=label))
+        if not features:
+            features = InvoiceFeatures(invoice_id=invoice_id, account_id=current_user.account_id)
+            db.add(features)
+        features.predicted_probability = result.probability
+        features.predicted_label = result.label
+        features.prediction_mode = result.mode
+        features.model_invoices_seen = result.invoices_seen
+        features.model_held_out_accuracy = result.held_out_accuracy
         db.commit()
 
         return RedirectResponse(f"/view-invoice/{invoice_id}", status_code=303)
@@ -123,41 +90,20 @@ def ml_analytics(request: Request, current_user: CurrentUser = Depends(require_a
         low_risk = total_predictions - high_risk
         avg_confidence = sum(f.predicted_probability for f in all_features) / max(total_predictions, 1)
 
-        csv_service, ml_service = _services_for(current_user)
-        stats = csv_service.get_stats()
-        all_customers = csv_service.get_all_customers()
-        high_risk_customers = csv_service.get_high_risk_customers()
-
-        low_risk_cust = sum(1 for c in all_customers if c.get('payment_reliability', 0) >= 0.7)
-        med_risk_cust = sum(1 for c in all_customers if 0.4 <= c.get('payment_reliability', 0) < 0.7)
-        high_risk_cust = sum(1 for c in all_customers if c.get('payment_reliability', 0) < 0.4)
-
-        total_on_time = sum(c.get('paid_on_time', 0) for c in all_customers)
-        total_late = sum(c.get('paid_late', 0) for c in all_customers)
-        total_unpaid = sum(c.get('not_paid', 0) for c in all_customers)
+        ml_service = MLService(current_user.account_id)
+        model_info = ml_service.get_model_info(db)
 
         recent = db.query(Invoice).join(InvoiceFeatures).filter(
             InvoiceFeatures.predicted_label.isnot(None)
         ).order_by(Invoice.created_at.desc()).limit(10).all()
-
-        top_risk = sorted(all_customers, key=lambda c: c.get('payment_reliability', 1))[:5]
 
         return templates.TemplateResponse("ml_analytics.html", {
             "request": request, "current_user": current_user,
             "total_predictions": total_predictions,
             "high_risk_count": high_risk, "low_risk_count": low_risk,
             "avg_confidence": round(avg_confidence * 100, 1),
-            "total_customers": stats.get('total_customers', 0),
-            "high_risk_customers": high_risk_customers[:10],
             "recent_predictions": recent,
-            "model_info": ml_service.get_model_info(),
-            "low_risk_cust": low_risk_cust, "med_risk_cust": med_risk_cust,
-            "high_risk_cust": high_risk_cust,
-            "total_on_time": total_on_time, "total_late": total_late,
-            "total_unpaid": total_unpaid,
-            "total_amount": round(stats.get('total_amount', 0), 2),
-            "avg_reliability": stats.get('avg_reliability', 0),
-            "top_risk": top_risk,
+            "model_info": model_info,
         })
     finally:
         db.close()
@@ -171,38 +117,37 @@ def explain_prediction(request: Request, invoice_id: int, current_user: CurrentU
         if not invoice:
             return RedirectResponse("/view-data", status_code=303)
 
-        csv_service, _ = _services_for(current_user)
-        customer_data = csv_service.find_customer_match(invoice.customer_name)
-        factors = []
+        ml_service = MLService(current_user.account_id)
+        summary = ml_service.customer_summary(db, invoice)
+        features = invoice.features
 
+        factors = []
         overdue_days = _days_overdue(invoice.due_date)
         if overdue_days > 0:
             factors.append(("Invoice is overdue", f"{overdue_days} days past due date"))
 
-        if customer_data:
-            risk_assessment = csv_service.calculate_payment_risk(customer_data, _safe_amount(invoice))
-            rel = risk_assessment['payment_reliability']
-
-            if rel < 0.4: factors.append(("Low payment reliability", f"{rel:.0%} on-time rate"))
-            elif rel < 0.7: factors.append(("Moderate payment reliability", f"{rel:.0%} on-time rate"))
-            else: factors.append(("Good payment reliability", f"{rel:.0%} on-time rate"))
-
-            if customer_data.get('avg_payment_delay', 0) > 15:
-                factors.append(("History of late payments", f"Avg {customer_data['avg_payment_delay']:.0f} days late"))
-            if customer_data.get('not_paid', 0) > 0:
-                factors.append(("Has unpaid invoices", f"{customer_data['not_paid']} unpaid"))
-            for rf in customer_data.get('risk_factors', [])[:3]:
-                factors.append(("Risk factor", rf))
+        if summary["paid_count"] > 0:
+            on_time_rate = summary["on_time_count"] / summary["paid_count"]
+            if on_time_rate < 0.4:
+                factors.append(("Low payment reliability", f"{on_time_rate:.0%} on-time rate on {summary['paid_count']} past invoices"))
+            elif on_time_rate < 0.7:
+                factors.append(("Moderate payment reliability", f"{on_time_rate:.0%} on-time rate on {summary['paid_count']} past invoices"))
+            else:
+                factors.append(("Good payment reliability", f"{on_time_rate:.0%} on-time rate on {summary['paid_count']} past invoices"))
+            if summary["avg_delay_days"] > 15:
+                factors.append(("History of late payments", f"Avg {summary['avg_delay_days']:.0f} days late when late"))
         else:
-            risk_assessment = None
-            factors.append(("New customer", "No payment history available"))
-            amt = _safe_amount(invoice)
-            if amt > 5000: factors.append(("Large invoice amount", f"{amt:,.2f} from unknown customer"))
+            factors.append(("New customer", "No paid invoice history yet for this customer"))
+            if invoice.amount_float > 5000:
+                factors.append(("Large invoice amount", f"{invoice.amount_float:,.2f} from a customer with no track record"))
 
         return templates.TemplateResponse("ml_explain.html", {
             "request": request, "current_user": current_user,
-            "invoice": invoice, "customer_data": customer_data,
-            "risk_assessment": risk_assessment, "factors": factors,
+            "invoice": invoice, "features": features,
+            "customer_summary": summary, "factors": factors,
+            "mode": features.prediction_mode if features else None,
+            "invoices_seen": features.model_invoices_seen if features else 0,
+            "held_out_accuracy": features.model_held_out_accuracy if features else None,
         })
     finally:
         db.close()

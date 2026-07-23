@@ -147,6 +147,11 @@ class InvoiceFeatures(Base):
     predicted_probability = Column(Float, nullable=True)  # Probability of late payment
     predicted_label = Column(Integer, nullable=True)  # 0 = will pay on time, 1 = will be late
 
+    # What produced this prediction, so the UI can always say so honestly
+    prediction_mode = Column(String(20), nullable=True)  # "ml" or "heuristic"
+    model_invoices_seen = Column(Integer, nullable=True)  # paid invoices the account's model was trained on
+    model_held_out_accuracy = Column(Float, nullable=True)  # real held-out accuracy, null if not measurable
+
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -270,6 +275,16 @@ def _migrate_schema():
             ):
                 if column not in columns:
                     conn.execute(text(f"ALTER TABLE invoices ADD COLUMN {column} {ddl_type}"))
+
+        if "invoice_features" in existing_tables:
+            columns = _table_columns(conn, "invoice_features")
+            for column, ddl_type in (
+                ("prediction_mode", "VARCHAR(20)"),
+                ("model_invoices_seen", "INTEGER"),
+                ("model_held_out_accuracy", "FLOAT"),
+            ):
+                if column not in columns:
+                    conn.execute(text(f"ALTER TABLE invoice_features ADD COLUMN {column} {ddl_type}"))
 
 
 def init_db():

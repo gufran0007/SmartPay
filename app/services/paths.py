@@ -17,8 +17,9 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 DATA_DIR = PROJECT_ROOT / "app" / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-# Models directory for ML models
-MODELS_DIR = PROJECT_ROOT / "app" / "models"
+# Directory for trained model files (payment_predictor_account_<id>.pkl).
+# Overridable so tests never write real model files into the source tree.
+MODELS_DIR = Path(os.environ["MODELS_DIR"]) if os.environ.get("MODELS_DIR") else PROJECT_ROOT / "app" / "models"
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Static directory for CSS/JS files

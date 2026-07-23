@@ -45,18 +45,18 @@
                     </p>
                 </div>
 
-                {% if count > 0 %}
                 <div class="grid grid-cols-2 gap-4 mb-6">
                     <div class="bg-blue-50 rounded-xl p-4 text-center">
                         <div class="text-3xl font-bold text-blue-600">{{ count }}</div>
-                        <div class="text-sm text-gray-600">Training Samples</div>
+                        <div class="text-sm text-gray-600">Paid invoices on file</div>
                     </div>
                     <div class="bg-purple-50 rounded-xl p-4 text-center">
-                        <div class="text-3xl font-bold text-purple-600">Ready</div>
-                        <div class="text-sm text-gray-600">Model Status</div>
+                        <div class="text-lg font-bold text-purple-600">
+                            {% if mode == 'ml' %}Machine learning{% else %}Payment-terms heuristic{% endif %}
+                        </div>
+                        <div class="text-sm text-gray-600">Prediction mode</div>
                     </div>
                 </div>
-                {% endif %}
 
                 <div class="bg-gray-50 rounded-xl p-4 mb-6">
                     <h3 class="font-semibold text-gray-900 mb-2">What this means:</h3>
@@ -64,24 +64,27 @@
                         {% if success %}
                         <li class="flex items-start gap-2">
                             <i class="ri-check-line text-green-600 mt-0.5"></i>
-                            The ML model has been trained with available data
+                            Predictions for this account now use a machine-learning model trained
+                            only on its own paid invoices
                         </li>
                         <li class="flex items-start gap-2">
                             <i class="ri-check-line text-green-600 mt-0.5"></i>
-                            You can now run predictions on invoices
+                            Every prediction shows its held-out accuracy so you know how much to trust it
                         </li>
                         <li class="flex items-start gap-2">
                             <i class="ri-check-line text-green-600 mt-0.5"></i>
-                            More data will improve prediction accuracy
+                            Importing more paid invoices and retraining will keep improving it
                         </li>
                         {% else %}
                         <li class="flex items-start gap-2">
                             <i class="ri-information-line text-amber-600 mt-0.5"></i>
-                            Upload more CSV data with labeled payment outcomes
+                            Import invoice history that includes paid dates, so payments can be
+                            labeled on-time or late
                         </li>
                         <li class="flex items-start gap-2">
                             <i class="ri-information-line text-amber-600 mt-0.5"></i>
-                            Need at least 10 samples with known late_payment labels
+                            Predictions will keep working via the payment-terms heuristic until then —
+                            clearly marked as a heuristic, not ML
                         </li>
                         {% endif %}
                     </ul>
@@ -91,8 +94,8 @@
                     <a href="/dashboard" class="btn btn-primary flex-1 gap-1">
                         <i class="ri-dashboard-line"></i> Dashboard
                     </a>
-                    <a href="/upload-csv" class="btn btn-outline flex-1 gap-1">
-                        <i class="ri-upload-cloud-line"></i> Upload Data
+                    <a href="/import" class="btn btn-outline flex-1 gap-1">
+                        <i class="ri-upload-cloud-line"></i> Import Invoice History
                     </a>
                 </div>
             </div>
