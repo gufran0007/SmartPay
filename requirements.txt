@@ -16,4 +16,4 @@ numpy
 joblib
 python-dotenv
 pytest
-httpx
+httpx<0.28
