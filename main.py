@@ -10,7 +10,7 @@ from pathlib import Path
 import smtplib
 from email.mime.text import MIMEText
 
-from app.controllers import auth_controller, invoice_controller, prediction_controller, csv_controller
+from app.controllers import auth_controller, invoice_controller, prediction_controller, csv_controller, import_controller
 from app.models.database import SessionLocal, Invoice
 from app.services.auth import require_account, RequireLoginRedirect, CurrentUser, AccountScopeMiddleware
 
@@ -42,6 +42,7 @@ app.include_router(auth_controller.router)
 app.include_router(invoice_controller.router)
 app.include_router(prediction_controller.router)
 app.include_router(csv_controller.router)
+app.include_router(import_controller.router)
 
 # ===== EMAIL CONFIG =====
 GMAIL_USER = os.environ["GMAIL_USER"]

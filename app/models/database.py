@@ -58,12 +58,15 @@ class Invoice(Base):
 
     # Invoice details
     invoice_number = Column(String(255), default="N/A")
+    customer_id = Column(String(100), nullable=True)  # external customer identifier, from CSV import
     amount = Column(String(50), default="N/A")  # Stored as string for flexibility
     currency = Column(String(10), default="N/A")
+    payment_terms = Column(String(50), nullable=True)  # e.g. "Net 30", from CSV import
 
     # Dates
     date = Column(String(50), default="N/A")  # Invoice date
     due_date = Column(String(50), default="N/A")  # Payment due date
+    paid_date = Column(String(50), nullable=True)  # set on import when the row has one
 
     # Company information
     company_name = Column(String(255), default="N/A")
@@ -152,6 +155,34 @@ class InvoiceFeatures(Base):
         return f"<InvoiceFeatures(invoice_id={self.invoice_id}, predicted_label={self.predicted_label})>"
 
 
+@register_tenant_model
+class PendingImport(Base):
+    """A CSV/Excel upload awaiting the user's column-mapping confirmation.
+
+    Holds the LLM's proposed mapping plus enough of the source file (headers,
+    a sample of rows) to render the review screen, and the path to the full
+    file on disk so confirm-time import re-reads everything (not just the
+    sample) and applies the user-confirmed mapping deterministically — the
+    LLM is never involved in that second pass.
+    """
+    __tablename__ = "pending_imports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
+
+    filename = Column(String(255), nullable=False)
+    file_path = Column(String(1000), nullable=False)
+    headers = Column(Text, nullable=False)  # JSON list[str]
+    sample_rows = Column(Text, nullable=False)  # JSON list[dict]
+    proposed_mapping = Column(Text, nullable=False)  # JSON: canonical_field -> {source_column, confidence}
+    status = Column(String(20), default="pending_review")  # pending_review | confirmed | rejected
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<PendingImport(id={self.id}, filename={self.filename}, status={self.status})>"
+
+
 # Database configuration. Overridable so tests never touch the real dev DB.
 DATABASE_PATH = Path("data/smartpay.db")
 SQLALCHEMY_DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DATABASE_PATH}")
@@ -180,13 +211,14 @@ def _table_columns(conn, table_name: str) -> set:
 
 
 def _migrate_schema():
-    """Idempotent migration for the account_id rollout.
+    """Idempotent migration, additive only.
 
-    Creates any wholly-new tables (accounts) via create_all, then for
-    pre-existing installs adds the account_id column to users/invoices/
-    invoice_features if missing and backfills existing rows into a
-    'Legacy Data' account so nothing becomes silently invisible once
-    query-layer isolation is turned on.
+    Creates any wholly-new tables via create_all, then for pre-existing
+    installs adds any missing columns. account_id additions are backfilled
+    into a 'Legacy Data' account so nothing becomes silently invisible once
+    query-layer isolation is turned on; the Stage 2 canonical-schema columns
+    (customer_id, payment_terms, paid_date) are simple nullable additions
+    with nothing to backfill.
     """
     Base.metadata.create_all(bind=engine)
 
@@ -228,6 +260,16 @@ def _migrate_schema():
                 text(f"UPDATE {table} SET account_id = :acc WHERE account_id IS NULL"),
                 {"acc": acc_id},
             )
+
+        if "invoices" in existing_tables:
+            columns = _table_columns(conn, "invoices")
+            for column, ddl_type in (
+                ("customer_id", "VARCHAR(100)"),
+                ("payment_terms", "VARCHAR(50)"),
+                ("paid_date", "VARCHAR(50)"),
+            ):
+                if column not in columns:
+                    conn.execute(text(f"ALTER TABLE invoices ADD COLUMN {column} {ddl_type}"))
 
 
 def init_db():

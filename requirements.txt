@@ -15,5 +15,7 @@ pandas
 numpy
 joblib
 python-dotenv
+openpyxl
+anthropic
 pytest
 httpx<0.28
