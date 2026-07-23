@@ -1,24 +1,22 @@
 """Prediction Controller for Smart Pay"""
 from datetime import datetime, date
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from app.models.database import SessionLocal, InvoiceFeatures, Invoice
+from app.services.auth import require_account, CurrentUser
 from app.services.ml_service import MLService
 from app.services.csv_service import CSVService
-from app.services.paths import DATA_DIR
+from app.services.paths import DATA_DIR, get_account_upload_dir
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
-ml_service = MLService()
-csv_service = CSVService()
 
 
-def get_current_user(request):
-    uid = request.session.get("user_id")
-    if not uid: return None
-    return {"user_id": uid, "email": request.session.get("email", "")}
+def _services_for(current_user: CurrentUser):
+    csv_service = CSVService(upload_dir=get_account_upload_dir(current_user.account_id))
+    return csv_service, MLService(csv_service=csv_service)
 
 
 def _parse_date(date_str):
@@ -43,21 +41,20 @@ def _safe_amount(invoice):
 
 
 @router.get("/ml/train")
-def train_model(request: Request):
-    if not request.session.get("user_id"):
-        return RedirectResponse("/login", status_code=303)
+def train_model(request: Request, current_user: CurrentUser = Depends(require_account)):
     db = SessionLocal()
     try:
+        _, ml_service = _services_for(current_user)
         csv_files = list(DATA_DIR.glob("*.csv"))
         csv_path = csv_files[0] if csv_files else None
         count, message = ml_service.train_from_db(db, csv_path)
         return templates.TemplateResponse("ml_status.html", {
-            "request": request, "current_user": get_current_user(request),
+            "request": request, "current_user": current_user,
             "message": message, "count": count, "success": count > 0
         })
     except Exception as e:
         return templates.TemplateResponse("ml_status.html", {
-            "request": request, "current_user": get_current_user(request),
+            "request": request, "current_user": current_user,
             "message": f"Training failed: {e}", "count": 0, "success": False
         })
     finally:
@@ -65,15 +62,14 @@ def train_model(request: Request):
 
 
 @router.get("/ml/predict/{invoice_id}")
-def predict_payment(request: Request, invoice_id: int):
-    if not request.session.get("user_id"):
-        return RedirectResponse("/login", status_code=303)
+def predict_payment(request: Request, invoice_id: int, current_user: CurrentUser = Depends(require_account)):
     db = SessionLocal()
     try:
         invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
         if not invoice:
             return RedirectResponse("/view-data", status_code=303)
 
+        csv_service, ml_service = _services_for(current_user)
         proba, label = ml_service.predict_for_invoice(db, invoice_id)
 
         # Overdue boost
@@ -106,7 +102,7 @@ def predict_payment(request: Request, invoice_id: int):
             features.predicted_probability = proba
             features.predicted_label = label
         else:
-            db.add(InvoiceFeatures(invoice_id=invoice_id, predicted_probability=proba, predicted_label=label))
+            db.add(InvoiceFeatures(invoice_id=invoice_id, account_id=current_user.account_id, predicted_probability=proba, predicted_label=label))
         db.commit()
 
         return RedirectResponse(f"/view-invoice/{invoice_id}", status_code=303)
@@ -118,9 +114,7 @@ def predict_payment(request: Request, invoice_id: int):
 
 
 @router.get("/ml/analytics")
-def ml_analytics(request: Request):
-    if not request.session.get("user_id"):
-        return RedirectResponse("/login", status_code=303)
+def ml_analytics(request: Request, current_user: CurrentUser = Depends(require_account)):
     db = SessionLocal()
     try:
         all_features = db.query(InvoiceFeatures).filter(InvoiceFeatures.predicted_label.isnot(None)).all()
@@ -129,6 +123,7 @@ def ml_analytics(request: Request):
         low_risk = total_predictions - high_risk
         avg_confidence = sum(f.predicted_probability for f in all_features) / max(total_predictions, 1)
 
+        csv_service, ml_service = _services_for(current_user)
         stats = csv_service.get_stats()
         all_customers = csv_service.get_all_customers()
         high_risk_customers = csv_service.get_high_risk_customers()
@@ -148,7 +143,7 @@ def ml_analytics(request: Request):
         top_risk = sorted(all_customers, key=lambda c: c.get('payment_reliability', 1))[:5]
 
         return templates.TemplateResponse("ml_analytics.html", {
-            "request": request, "current_user": get_current_user(request),
+            "request": request, "current_user": current_user,
             "total_predictions": total_predictions,
             "high_risk_count": high_risk, "low_risk_count": low_risk,
             "avg_confidence": round(avg_confidence * 100, 1),
@@ -169,15 +164,14 @@ def ml_analytics(request: Request):
 
 
 @router.get("/ml/explain/{invoice_id}")
-def explain_prediction(request: Request, invoice_id: int):
-    if not request.session.get("user_id"):
-        return RedirectResponse("/login", status_code=303)
+def explain_prediction(request: Request, invoice_id: int, current_user: CurrentUser = Depends(require_account)):
     db = SessionLocal()
     try:
         invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
         if not invoice:
             return RedirectResponse("/view-data", status_code=303)
 
+        csv_service, _ = _services_for(current_user)
         customer_data = csv_service.find_customer_match(invoice.customer_name)
         factors = []
 
@@ -206,7 +200,7 @@ def explain_prediction(request: Request, invoice_id: int):
             if amt > 5000: factors.append(("Large invoice amount", f"{amt:,.2f} from unknown customer"))
 
         return templates.TemplateResponse("ml_explain.html", {
-            "request": request, "current_user": get_current_user(request),
+            "request": request, "current_user": current_user,
             "invoice": invoice, "customer_data": customer_data,
             "risk_assessment": risk_assessment, "factors": factors,
         })

@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -12,9 +12,17 @@ from email.mime.text import MIMEText
 
 from app.controllers import auth_controller, invoice_controller, prediction_controller, csv_controller
 from app.models.database import SessionLocal, Invoice
+from app.services.auth import require_account, RequireLoginRedirect, CurrentUser, AccountScopeMiddleware
 
 app = FastAPI(title="Smart Pay Invoice System", version="2.0.0")
 from starlette.middleware.sessions import SessionMiddleware
+
+# Added in this order on purpose: Starlette makes the LAST-added
+# middleware the OUTERMOST one, and AccountScopeMiddleware reads
+# request.session, which only exists once SessionMiddleware has run.
+# So AccountScopeMiddleware must be added first (inner), SessionMiddleware
+# second (outer) so it decodes the cookie before control reaches it.
+app.add_middleware(AccountScopeMiddleware)
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ["SESSION_SECRET"],
@@ -49,7 +57,7 @@ def root(request: Request):
     })
 
 @app.post("/send-reminder/{invoice_id}")
-async def send_reminder(invoice_id: int, customer_email: str = Form(...)):
+async def send_reminder(invoice_id: int, customer_email: str = Form(...), current_user: CurrentUser = Depends(require_account)):
     db = SessionLocal()
     try:
         invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
@@ -81,6 +89,10 @@ async def send_reminder(invoice_id: int, customer_email: str = Form(...)):
         return RedirectResponse(f"/view-invoice/{invoice_id}?error=Email+failed", status_code=303)
     finally:
         db.close()
+
+@app.exception_handler(RequireLoginRedirect)
+async def require_login_redirect(request: Request, exc: RequireLoginRedirect):
+    return RedirectResponse("/login", status_code=303)
 
 @app.exception_handler(404)
 async def not_found(request: Request, exc):

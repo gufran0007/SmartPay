@@ -3,32 +3,24 @@ Invoice Controller for Smart Pay
 Handles invoice CRUD, upload, dashboard, and status workflow
 """
 from datetime import datetime, date
-from fastapi import APIRouter, Request, UploadFile, File, Form
+from fastapi import APIRouter, Depends, Request, UploadFile, File, Form
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 import re
 
 from app.models.database import SessionLocal, Invoice, InvoiceFeatures
+from app.services.auth import require_account, CurrentUser
 from app.services.csv_service import CSVService
-from app.services.paths import UPLOAD_DIR
+from app.services.paths import get_account_upload_dir
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
-csv_service = CSVService()
-
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # ════════════════════════════════════════════════════════
 #  HELPERS
 # ════════════════════════════════════════════════════════
-
-def get_current_user(request):
-    uid = request.session.get("user_id")
-    if not uid: return None
-    return {"user_id": uid, "email": request.session.get("email", "")}
-
 
 def sanitize(value):
     if not value: return ""
@@ -55,7 +47,7 @@ def _parse_date(date_str):
 
 def _check_overdue(invoice):
     if invoice.status in ('paid', 'disputed'):
-        return invoice.status 
+        return invoice.status
 
     due = _parse_date(invoice.due_date)
     if due and due < date.today():
@@ -147,10 +139,10 @@ def extract_data(file_path: Path) -> dict:
 
 def _find_invoice_number(text):
     patterns = [
-        r'Invoice\s*#\s*[-\u2014]?\s*([A-Za-z0-9][\w\-/]+)',
-        r'Invoice\s*(?:No\.?|Number|ID|Ref)[:\-\u2014\s]+([A-Za-z0-9][\w\-/]+)',
-        r'\bInv[.\s]+(?:No|#|Ref)[:\-\u2014\s]+([A-Za-z0-9][\w\-/]+)',
-        r'Bill\s*(?:No\.?|Number|#)[:\-\u2014\s]+([A-Za-z0-9][\w\-/]+)',
+        r'Invoice\s*#\s*[-—]?\s*([A-Za-z0-9][\w\-/]+)',
+        r'Invoice\s*(?:No\.?|Number|ID|Ref)[:\-—\s]+([A-Za-z0-9][\w\-/]+)',
+        r'\bInv[.\s]+(?:No|#|Ref)[:\-—\s]+([A-Za-z0-9][\w\-/]+)',
+        r'Bill\s*(?:No\.?|Number|#)[:\-—\s]+([A-Za-z0-9][\w\-/]+)',
         r'\b(INV[\-/][A-Z]?[\-/]?\d{4}[\-/]\d+)\b',
         r'\b(INV[\-]?\d{3,})\b',
     ]
@@ -170,18 +162,18 @@ def _find_email(text):
 
 def _find_amount_and_currency(text):
     currency = 'N/A'
-    for sym, code in [('\u20ac','EUR'),('EUR','EUR'),('$','USD'),('USD','USD'),
-                      ('\u00a3','GBP'),('GBP','GBP'),('AUD','AUD'),('CAD','CAD'),
-                      ('CHF','CHF'),('\u00a5','JPY'),('JPY','JPY'),('\u20b9','INR'),('INR','INR')]:
+    for sym, code in [('€','EUR'),('EUR','EUR'),('$','USD'),('USD','USD'),
+                      ('£','GBP'),('GBP','GBP'),('AUD','AUD'),('CAD','CAD'),
+                      ('CHF','CHF'),('¥','JPY'),('JPY','JPY'),('₹','INR'),('INR','INR')]:
         if sym in text:
             currency = code
             break
 
     patterns = [
-        r'Invoice\s*Amount\s*[-\u2014:]?\s*[\u20ac$\u00a3\u00a5\u20b9]?\s*([\d.,]+)',
-        r'(?:Grand\s*Total|Total|Amount\s*Due|Balance\s*Due)\s*[-\u2014:]?\s*[\u20ac$\u00a3\u00a5\u20b9]?\s*([\d.,]+)',
-        r'[\u20ac$\u00a3\u00a5\u20b9]\s*([\d.,]+)',
-        r'([\d.,]+)\s*[\u20ac$\u00a3\u00a5\u20b9]',
+        r'Invoice\s*Amount\s*[-—:]?\s*[€$£¥₹]?\s*([\d.,]+)',
+        r'(?:Grand\s*Total|Total|Amount\s*Due|Balance\s*Due)\s*[-—:]?\s*[€$£¥₹]?\s*([\d.,]+)',
+        r'[€$£¥₹]\s*([\d.,]+)',
+        r'([\d.,]+)\s*[€$£¥₹]',
         r'([\d.,]+)\s*(?:EUR|USD|GBP|AUD|CAD)',
     ]
     found = []
@@ -216,14 +208,14 @@ def _find_dates(text):
         r'\d{1,2}\s+[A-Z][a-z]+,?\s+\d{4}',
         r'\d{4}[/\-]\d{2}[/\-]\d{2}',
     ]
-    for label in [r'Invoice\s*Date\s*[-\u2014:]?\s*', r'Date\s*[-\u2014:]?\s*']:
+    for label in [r'Invoice\s*Date\s*[-—:]?\s*', r'Date\s*[-—:]?\s*']:
         for dp in date_re:
             m = re.search(label + f'({dp})', text, re.I)
             if m: inv_date = m.group(1).strip(); break
         if inv_date != 'N/A': break
 
-    for label in [r'Due\s*Date\s*[-\u2014:]?\s*', r'Next\s*Billing\s*Date\s*[-\u2014:]?\s*',
-                  r'Pay\s*By\s*[-\u2014:]?\s*']:
+    for label in [r'Due\s*Date\s*[-—:]?\s*', r'Next\s*Billing\s*Date\s*[-—:]?\s*',
+                  r'Pay\s*By\s*[-—:]?\s*']:
         for dp in date_re:
             m = re.search(label + f'({dp})', text, re.I)
             if m: due_date = m.group(1).strip(); break
@@ -241,7 +233,7 @@ def _find_dates(text):
 def _find_customer_name(text):
     patterns = [
         r'(?:BILLED?\s*TO|Bill\s*To|Customer|Client)\s*\n\s*([A-Za-z0-9][\w\s\'.&,-]{1,40})',
-        r'(?:Attn|Attention|Name)\s*[-\u2014:]?\s*([A-Za-z][\w\s\'.&,-]{1,40})',
+        r'(?:Attn|Attention|Name)\s*[-—:]?\s*([A-Za-z][\w\s\'.&,-]{1,40})',
     ]
     for p in patterns:
         m = re.search(p, text, re.I)
@@ -265,7 +257,7 @@ def _find_company_name(text):
 
 
 def _find_vat_id(text):
-    for p in [r'VAT\s*(?:Number|No\.?|ID)\s*[-\u2014:]?\s*([A-Z]{2}[A-Z0-9]{8,12})',
+    for p in [r'VAT\s*(?:Number|No\.?|ID)\s*[-—:]?\s*([A-Z]{2}[A-Z0-9]{8,12})',
               r'\b(ES[A-Z]\d{8})\b', r'\b(GB\d{9,12})\b', r'\b(IE\d{7}[A-Z]{1,2})\b',
               r'\b(DE\d{9})\b', r'\b(FR[A-Z0-9]{2}\d{9})\b']:
         m = re.search(p, text, re.I)
@@ -288,13 +280,14 @@ def _find_address(text):
 
 
 @router.get("/dashboard")
-def dashboard(request: Request):
+def dashboard(request: Request, current_user: CurrentUser = Depends(require_account)):
     db = SessionLocal()
     try:
         # Auto-detect overdue invoices
         _auto_update_statuses(db)
 
         invoices = db.query(Invoice).order_by(Invoice.created_at.desc()).all()
+        csv_service = CSVService(upload_dir=get_account_upload_dir(current_user.account_id))
         stats = csv_service.get_stats()
         all_customers = csv_service.get_all_customers()
         high_risk_customers = csv_service.get_high_risk_customers(0.6)
@@ -318,10 +311,8 @@ def dashboard(request: Request):
         status_overdue = sum(1 for i in invoices if i.status == 'overdue')
         status_disputed = sum(1 for i in invoices if i.status == 'disputed')
 
-        user = get_current_user(request)
-
         return templates.TemplateResponse("dashboard.html", {
-            "request": request, "current_user": user,
+            "request": request, "current_user": current_user,
             "total_invoices": len(invoices),
             "total_customers": stats.get('total_customers', 0),
             "high_risk_count": len(high_risk_customers), "avg_reliability": avg_reliability,
@@ -336,29 +327,31 @@ def dashboard(request: Request):
 
 
 @router.get("/upload")
-def upload_page(request: Request):
-    user = get_current_user(request)
-    return templates.TemplateResponse("upload.html", {"request": request, "current_user": user})
-@router.post("/update-status/{invoice_id}")
+def upload_page(request: Request, current_user: CurrentUser = Depends(require_account)):
+    return templates.TemplateResponse("upload.html", {"request": request, "current_user": current_user})
+
 
 @router.post("/upload")
-async def upload_invoice(request: Request, file: UploadFile = File(...)):
+async def upload_invoice(request: Request, file: UploadFile = File(...), current_user: CurrentUser = Depends(require_account)):
     db = SessionLocal()
     try:
         allowed = {'.pdf', '.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif'}
         ext = Path(file.filename).suffix.lower()
         if ext not in allowed:
             return templates.TemplateResponse("upload.html", {
-                "request": request, "error": f"Invalid file type '{ext}'. Allowed: PDF, JPG, PNG"
+                "request": request, "current_user": current_user,
+                "error": f"Invalid file type '{ext}'. Allowed: PDF, JPG, PNG"
             })
 
         safe_name = re.sub(r'[^a-zA-Z0-9._\- ]', '', file.filename).strip() or "upload" + ext
-        file_path = UPLOAD_DIR / safe_name
+        account_dir = get_account_upload_dir(current_user.account_id)
+        file_path = account_dir / safe_name
         content = await file.read()
 
         if len(content) > 10 * 1024 * 1024:
             return templates.TemplateResponse("upload.html", {
-                "request": request, "error": "File too large. Maximum size is 10MB."
+                "request": request, "current_user": current_user,
+                "error": "File too large. Maximum size is 10MB."
             })
 
         with open(file_path, "wb") as f:
@@ -373,6 +366,7 @@ async def upload_invoice(request: Request, file: UploadFile = File(...)):
             initial_status = 'overdue'
 
         invoice = Invoice(
+            account_id=current_user.account_id,
             filename=safe_name,
             invoice_number=sanitize(extracted['invoice_number']),
             customer_name=sanitize(extracted['customer_name']),
@@ -390,25 +384,24 @@ async def upload_invoice(request: Request, file: UploadFile = File(...)):
         db.commit()
         db.refresh(invoice)
 
-        features = InvoiceFeatures(invoice_id=invoice.id)
+        features = InvoiceFeatures(invoice_id=invoice.id, account_id=current_user.account_id)
         db.add(features)
         db.commit()
 
         return RedirectResponse(f"/view-invoice/{invoice.id}?uploaded=1", status_code=303)
     except Exception as e:
         print(f"Upload error: {e}")
-        return templates.TemplateResponse("upload.html", {"request": request, "error": str(e)})
+        return templates.TemplateResponse("upload.html", {"request": request, "current_user": current_user, "error": str(e)})
     finally:
         db.close()
 
 
 @router.get("/view-data")
-def view_all_invoices(request: Request):
+def view_all_invoices(request: Request, current_user: CurrentUser = Depends(require_account)):
     db = SessionLocal()
     try:
         _auto_update_statuses(db)
         invoices = db.query(Invoice).order_by(Invoice.created_at.desc()).all()
-        user = get_current_user(request)
 
         # Count by status
         status_counts = {'pending': 0, 'paid': 0, 'overdue': 0, 'disputed': 0}
@@ -417,7 +410,7 @@ def view_all_invoices(request: Request):
             if s in status_counts: status_counts[s] += 1
 
         return templates.TemplateResponse("view_data.html", {
-            "request": request, "current_user": user,
+            "request": request, "current_user": current_user,
             "invoices": invoices, "total": len(invoices),
             **status_counts,
         })
@@ -426,13 +419,13 @@ def view_all_invoices(request: Request):
 
 
 @router.get("/view-invoice/{invoice_id}")
-def view_invoice(request: Request, invoice_id: int):
+def view_invoice(request: Request, invoice_id: int, current_user: CurrentUser = Depends(require_account)):
     db = SessionLocal()
     try:
         invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
         if not invoice:
             return templates.TemplateResponse("error.html", {
-                "request": request, "error_code": 404,
+                "request": request, "current_user": current_user, "error_code": 404,
                 "message": "Invoice not found", "description": f"Invoice #{invoice_id} doesn't exist."
             }, status_code=404)
 
@@ -444,11 +437,11 @@ def view_invoice(request: Request, invoice_id: int):
 
         customer_history = None
         if invoice.customer_name and invoice.customer_name != 'N/A':
+            csv_service = CSVService(upload_dir=get_account_upload_dir(current_user.account_id))
             customer_history = csv_service.find_customer_match(invoice.customer_name)
 
-        user = get_current_user(request)
         return templates.TemplateResponse("view_invoice.html", {
-            "request": request, "current_user": user,
+            "request": request, "current_user": current_user,
             "inv": invoice, "customer_history": customer_history,
         })
     finally:
@@ -456,11 +449,8 @@ def view_invoice(request: Request, invoice_id: int):
 
 
 @router.post("/update-status/{invoice_id}")
-async def update_status(request: Request, invoice_id: int, status: str = Form(...)):
+async def update_status(request: Request, invoice_id: int, status: str = Form(...), current_user: CurrentUser = Depends(require_account)):
     """Update invoice status (paid, overdue, disputed, pending)"""
-    if not request.session.get("user_id"):
-        return RedirectResponse("/login", status_code=303)
-
     valid = {'pending', 'paid', 'overdue', 'disputed'}
     if status not in valid:
         return RedirectResponse(f"/view-invoice/{invoice_id}?error=Invalid+status", status_code=303)
@@ -477,18 +467,17 @@ async def update_status(request: Request, invoice_id: int, status: str = Form(..
 
 
 @router.get("/edit-invoice/{invoice_id}")
-def edit_invoice_page(request: Request, invoice_id: int):
+def edit_invoice_page(request: Request, invoice_id: int, current_user: CurrentUser = Depends(require_account)):
     db = SessionLocal()
     try:
         invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
         if not invoice:
             return templates.TemplateResponse("error.html", {
-                "request": request, "error_code": 404,
+                "request": request, "current_user": current_user, "error_code": 404,
                 "message": "Invoice not found", "description": f"Invoice #{invoice_id} doesn't exist."
             }, status_code=404)
-        user = get_current_user(request)
         return templates.TemplateResponse("edit_invoice.html", {
-            "request": request, "current_user": user, "inv": invoice, "invoice": invoice,
+            "request": request, "current_user": current_user, "inv": invoice, "invoice": invoice,
         })
     finally:
         db.close()
@@ -501,7 +490,8 @@ async def update_invoice(
     customer_email: str = Form(""), customer_address: str = Form(""),
     company_name: str = Form(""), amount: str = Form(""),
     currency: str = Form(""), date: str = Form(""),
-    due_date: str = Form(""), vat_id: str = Form("")
+    due_date: str = Form(""), vat_id: str = Form(""),
+    current_user: CurrentUser = Depends(require_account),
 ):
     db = SessionLocal()
     try:
@@ -529,7 +519,7 @@ async def update_invoice(
 
 
 @router.post("/delete-invoice")
-async def delete_invoice(request: Request, invoice_id: int = Form(...)):
+async def delete_invoice(request: Request, invoice_id: int = Form(...), current_user: CurrentUser = Depends(require_account)):
     db = SessionLocal()
     try:
         invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()

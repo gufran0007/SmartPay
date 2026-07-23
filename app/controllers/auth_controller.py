@@ -20,7 +20,7 @@ class _bc:
 
 bcrypt = _bc()
 
-from app.models.database import SessionLocal, User
+from app.models.database import SessionLocal, User, Account
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -59,8 +59,15 @@ def register_user(
         if len(password) < 6:
             return render(request, "register.html", error="Password must be at least 6 characters")
         
-        # Create user
+        # Each account starts life with exactly one user: the person
+        # who registered. Additional users per account can come later
+        # without another migration, since the FK is already in place.
+        account = Account(name=f"{email.lower().strip()}'s Account")
+        db.add(account)
+        db.flush()  # assigns account.id without a separate commit
+
         user = User(
+            account_id=account.id,
             email=email.lower().strip(),
             password=bcrypt.hash(password)
         )

@@ -20,9 +20,12 @@ from app.services.paths import MODELS_DIR, DATA_DIR
 
 class MLService:
 
-    def __init__(self):
+    def __init__(self, csv_service: CSVService):
+        """`csv_service` must already be scoped to the calling account's
+        own upload directory (see app.services.paths.get_account_upload_dir)
+        so predictions never blend in another account's customer history."""
         self.model = None
-        self.csv_service = CSVService()
+        self.csv_service = csv_service
         self.model_path = MODELS_DIR / "payment_predictor.pkl"
         self._load_model()
 

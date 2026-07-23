@@ -1,19 +1,24 @@
 """
 CSV Service for Smart Pay
-Handles customer payment history from CSV files.
-Supports both the IBM Finance Factoring dataset and custom CSV formats.
+Handles customer payment history from CSV files, scoped to a single
+account's own upload directory so one tenant's data is never mixed
+into another's.
 """
 import pandas as pd
 import numpy as np
 from pathlib import Path
 import re
 from typing import Dict, Optional, List
-from app.services.paths import DATA_DIR, UPLOAD_DIR
 
 
 class CSVService:
 
-    def __init__(self):
+    def __init__(self, upload_dir: Path):
+        """`upload_dir` must be the calling account's own upload directory
+        (see app.services.paths.get_account_upload_dir) — this service
+        never reads any other location, so it can't leak another
+        account's uploaded data."""
+        self.upload_dir = upload_dir
         self.customer_history: Dict[str, Dict] = {}
         self.dataset_records: List[Dict] = []
         self._load_all_csv_data()
@@ -23,21 +28,9 @@ class CSVService:
     # ════════════════════════════════════════════════════════
 
     def _load_all_csv_data(self):
-        print("Loading CSV data files...")
-
-        if DATA_DIR.exists():
-            csv_files = list(DATA_DIR.glob("*.csv"))
-            print(f"Found {len(csv_files)} CSV files in app/data")
-            for f in csv_files:
-                print(f"Loading: {f.name}")
+        if self.upload_dir.exists():
+            for f in self.upload_dir.glob("*.csv"):
                 self._load_csv_file(f)
-
-        if UPLOAD_DIR.exists():
-            for f in UPLOAD_DIR.glob("*.csv"):
-                print(f"Loading uploaded: {f.name}")
-                self._load_csv_file(f)
-
-        print(f"Loaded {len(self.customer_history)} customers, {len(self.dataset_records)} records")
 
     def _load_csv_file(self, csv_path: Path):
         try:

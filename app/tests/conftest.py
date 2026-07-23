@@ -1,5 +1,48 @@
+import os
+import tempfile
+from pathlib import Path
+
+# Must happen before `main`/`app.models.database` is imported by any test
+# (conftest.py is collected first), so integration tests never touch the
+# real dev database or uploads/ directory.
+_test_root = Path(tempfile.mkdtemp(prefix="smartpay_test_"))
+os.environ["DATABASE_URL"] = f"sqlite:///{(_test_root / 'test.db').as_posix()}"
+os.environ["UPLOAD_DIR"] = str(_test_root / "uploads")
+os.environ.setdefault("SESSION_SECRET", "test-secret-for-pytest-only")
+os.environ.setdefault("GMAIL_USER", "test@example.com")
+os.environ.setdefault("GMAIL_APP_PASSWORD", "test-password")
+
 import pandas as pd
 import pytest
+
+
+@pytest.fixture()
+def reset_db():
+    """Fresh schema for tests that exercise the real app/DB end-to-end."""
+    from app.models.database import Base, engine
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+    yield
+
+
+@pytest.fixture()
+def app_client(reset_db):
+    """Factory for independent TestClient sessions against the same app —
+    each call gets its own cookie jar, so two logged-in accounts in the
+    same test never share a session."""
+    from fastapi.testclient import TestClient
+    from main import app
+
+    clients = []
+
+    def _make():
+        c = TestClient(app)
+        clients.append(c)
+        return c
+
+    yield _make
+    for c in clients:
+        c.close()
 
 
 @pytest.fixture
