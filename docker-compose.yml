@@ -5,9 +5,9 @@ services:
     restart: unless-stopped
     volumes:
       - smartpay_data:/app/data
+      - smartpay_uploads:/app/uploads
     expose:
       - "8000"
-
   caddy:
     image: caddy:2
     container_name: smartpay-caddy
@@ -21,8 +21,8 @@ services:
       - caddy_config:/config
     depends_on:
       - app
-
 volumes:
   smartpay_data:
+  smartpay_uploads:
   caddy_data:
   caddy_config:

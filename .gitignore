@@ -11,3 +11,7 @@ venv/
 dist/
 build/
 *.log
+*.db
+.env
+data/
+uploads/

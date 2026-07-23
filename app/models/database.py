@@ -1,4 +1,4 @@
-"""
+﻿"""
 Database Models for Smart Pay
 SQLAlchemy ORM models for users, invoices, and ML features
 """
@@ -129,7 +129,7 @@ class InvoiceFeatures(Base):
 
 
 # Database configuration
-DATABASE_PATH = Path("smartpay.db")
+DATABASE_PATH = Path("data/smartpay.db")
 SQLALCHEMY_DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
 
 engine = create_engine(
@@ -157,3 +157,4 @@ def get_db():
 
 # Create tables on import
 init_db()
+
