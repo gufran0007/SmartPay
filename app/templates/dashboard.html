@@ -1,925 +1,258 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="light">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if current_user %}Dashboard{% else %}Smart Pay | AI-Powered Invoice Management{% endif %}</title>
-    <meta name="description" content="SmartPay reads your invoices and predicts which customers are likely to pay late, so you can chase risky invoices early and protect your cash flow. Built by Ghufran Aslam.">
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.23/dist/full.min.css" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
+{% extends "base.html" %}
 
-        /* ════════ Landing page — "Ledger" theme (guest branch only) ════════ */
-        .font-display { font-family: 'Fraunces', Georgia, 'Times New Roman', serif; font-optical-sizing: auto; letter-spacing: -0.015em; }
+{% block title %}Dashboard · Smart Pay{% endblock %}
 
-        /* scroll reveal */
-        .reveal { opacity: 0; transform: translateY(26px); filter: blur(8px);
-            transition: opacity .9s cubic-bezier(.2,.7,.2,1), transform .9s cubic-bezier(.2,.7,.2,1), filter .9s ease; }
-        .reveal.is-in { opacity: 1; transform: none; filter: none; }
+{% block head %}
+<style>
+    .welcome-banner { background: var(--signal); color: white; padding: var(--space-6) var(--space-5); margin-bottom: var(--space-6); }
+    .welcome-banner h1 { color: white; font-size: var(--text-2xl); margin-bottom: var(--space-1); }
+    .welcome-banner p { color: rgba(255,255,255,0.85); margin-bottom: var(--space-4); }
+    .welcome-banner .btn-primary { background: white; color: var(--signal-strong); }
+    .welcome-banner .btn-primary:hover { background: var(--paper); }
+    .welcome-banner .btn-secondary { background: transparent; border-color: rgba(255,255,255,0.4); color: white; }
+    .welcome-banner .btn-secondary:hover { border-color: white; color: white; }
 
-        /* hero 3D stage */
-        .hero-stage { position: relative; }
-        #heroCanvas { position: absolute; inset: 0; z-index: 1; }
-        #heroCanvas canvas { display: block; width: 100%; height: 100%; }
+    .split-bar { height: 8px; border-radius: var(--radius-full); overflow: hidden; display: flex; background: var(--surface-2); margin-bottom: var(--space-2); }
+    .split-bar span { display: block; height: 100%; }
+    .split-legend { display: flex; align-items: center; gap: var(--space-3); font-size: var(--text-xs); color: var(--slate); flex-wrap: wrap; }
+    .split-legend .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
 
-        /* hero fallback / no-webgl composition */
-        .fb-wrap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 0; }
-        .fb-card { position: absolute; width: 168px; background: #fff; border: 1px solid #E7E5DF;
-            border-radius: 16px; box-shadow: 0 30px 60px -28px rgba(26,25,22,.45); padding: 16px; }
-        .fb-strip { height: 9px; border-radius: 5px; margin-bottom: 12px; width: 60%; }
-        .fb-row { height: 7px; border-radius: 4px; background: #ECEAE3; margin-bottom: 8px; }
-        .float-a { animation: floaty 6s ease-in-out infinite; }
-        .float-b { animation: floaty 7.4s ease-in-out infinite .6s; }
-        .float-c { animation: floaty 8s ease-in-out infinite .3s; }
-        @keyframes floaty { 0%,100% { transform: translateY(0) rotate(var(--r,0deg)); } 50% { transform: translateY(-16px) rotate(var(--r,0deg)); } }
+    .charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-5); margin-bottom: var(--space-6); }
+    .chart-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border); text-align: center; }
+    .chart-summary .label { font-size: var(--text-xs); color: var(--slate); margin-bottom: 2px; }
 
-        /* meaning-anchor tags over the hero */
-        .hero-tag { position: absolute; z-index: 3; display: inline-flex; align-items: center; gap: 6px;
-            background: rgba(255,255,255,.92); backdrop-filter: blur(8px); border: 1px solid #E7E5DF;
-            border-radius: 999px; padding: 7px 13px; font-size: 12.5px; font-weight: 600; color: #1A1916;
-            box-shadow: 0 16px 36px -18px rgba(26,25,22,.4); }
+    .quick-actions-grid { display: grid; grid-template-columns: 1fr 2fr; gap: var(--space-5); margin-bottom: var(--space-6); }
+    .quick-actions .btn { width: 100%; justify-content: flex-start; margin-bottom: var(--space-2); }
 
-        /* how-it-works connector */
-        .step-connect { position: absolute; top: 30px; left: 12.5%; right: 12.5%; height: 2px; background: #E7E5DF; overflow: hidden; }
-        .step-connect::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: #0E7C5A; transition: width 1.5s cubic-bezier(.2,.7,.2,1); }
-        .step-connect.is-in::after { width: 100%; }
+    @media (max-width: 900px) {
+        .stat-grid { grid-template-columns: repeat(2, 1fr); }
+        .charts-grid, .quick-actions-grid { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
 
-        /* ════════ Logged-in dashboard (Ledger palette · data-dense) ════════ */
-        .dash-card { background:#fff; border:1px solid #E7E5DF; border-radius:18px; box-shadow:0 1px 2px rgba(26,25,22,.04); }
-        .dash-card-h { transition: box-shadow .25s ease, transform .25s ease, border-color .25s ease; }
-        .dash-card-h:hover { box-shadow:0 18px 40px -24px rgba(26,25,22,.30); transform:translateY(-2px); border-color:#DCD9D1; }
-        .dash-navlink { display:inline-flex; align-items:center; gap:6px; font-size:14px; font-weight:500; color:#56544D; padding:8px 12px; border-radius:9999px; transition:color .2s ease, background .2s ease; }
-        .dash-navlink:hover { color:#1A1916; background:rgba(14,124,90,.08); }
-        .tnum { font-variant-numeric: tabular-nums; font-feature-settings:"tnum"; }
-        .dash-rise { animation: dashRise .6s cubic-bezier(.2,.7,.2,1) both; }
-        @keyframes dashRise { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
-        .ring { position:relative; width:58px; height:58px; border-radius:50%;
-            background: conic-gradient(#0E7C5A calc(var(--p,0)*1%), #ECEAE3 0); display:grid; place-items:center; flex:none; }
-        .ring::before { content:""; position:absolute; width:44px; height:44px; border-radius:50%; background:#fff; }
-        .ring > span { position:relative; z-index:1; font-size:12px; font-weight:700; color:#1A1916; }
-        .seg { height:8px; border-radius:6px; overflow:hidden; display:flex; background:#ECEAE3;
-            clip-path: inset(0 100% 0 0); transition: clip-path 1.1s cubic-bezier(.2,.7,.2,1) .15s; }
-        .seg.is-in { clip-path: inset(0 0 0 0); }
-        .seg > i { display:block; height:100%; }
-
-        /* dashboard scroll reveal (mirrors the landing's .reveal) */
-        .d-reveal { opacity:0; transform:translateY(24px); filter:blur(7px);
-            transition:opacity .85s cubic-bezier(.2,.7,.2,1), transform .85s cubic-bezier(.2,.7,.2,1), filter .85s ease; }
-        .d-reveal.is-in { opacity:1; transform:none; filter:none; }
-
-        /* animated reliability ring (fills via @property when --p changes) */
-        @property --p { syntax:'<number>'; inherits:false; initial-value:0; }
-        .ring { transition: --p 1.3s cubic-bezier(.2,.7,.2,1); }
-
-        /* 3D ledger stage inside the welcome banner */
-        #dashStage { position:absolute; top:0; right:0; bottom:0; width:64%; z-index:1; pointer-events:none; }
-        #dashStage canvas { display:block; width:100%; height:100%; }
-        @media (max-width:640px){ #dashStage { display:none; } }
-
-        @media (prefers-reduced-motion: reduce) {
-            *, *::before, *::after { animation: none !important; transition: none !important; }
-            .reveal, .d-reveal { opacity: 1 !important; transform: none !important; filter: none !important; }
-            .seg { clip-path: none !important; }
-        }
-    </style>
-</head>
-<body class="bg-[#F6F5F1] min-h-screen">
-
-    <!-- ═══════════ NAVIGATION — changes based on login state ═══════════ -->
-    <nav class="sticky top-0 z-50 bg-[#F6F5F1]/85 backdrop-blur border-b border-[#E7E5DF] text-[#1A1916]">
-        <div class="container mx-auto px-4 py-3">
-            <div class="flex justify-between items-center">
-                <a href="/" class="flex items-center gap-2">
-                    <i class="ri-file-invoice-dollar-line text-2xl text-[#0E7C5A]"></i>
-                    <span class="text-xl font-bold">Smart Pay</span>
-                </a>
-                <div class="flex items-center gap-2">
-                    {% if current_user %}
-                        <a href="/upload" class="dash-navlink hidden sm:inline-flex"><i class="ri-upload-cloud-line"></i> Upload</a>
-                        <a href="/ml/analytics" class="dash-navlink hidden sm:inline-flex"><i class="ri-brain-line"></i> ML Analytics</a>
-                        <a href="/customers" class="dash-navlink hidden sm:inline-flex"><i class="ri-group-line"></i> Customers</a>
-                        <div class="hidden md:flex items-center gap-2 ml-1 px-3 py-1.5 rounded-full border border-[#E7E5DF] bg-white/60 text-[#56544D]">
-                            <span class="w-6 h-6 rounded-full bg-[#0E7C5A]/10 flex items-center justify-center"><i class="ri-user-line text-xs text-[#0E7C5A]"></i></span>
-                            <span class="text-sm">{{ current_user.email }}</span>
-                        </div>
-                        <a href="/logout" class="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1A1916] hover:text-[#C2613B] transition px-3 py-2"><i class="ri-logout-box-r-line"></i> Logout</a>
-                    {% else %}
-                        <a href="https://github.com/gufran0007/smartpay" target="_blank" rel="noopener" class="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-[#56544D] hover:text-[#1A1916] transition">
-                            <i class="ri-github-fill text-base"></i> Source
-                        </a>
-                        <a href="/login" class="inline-flex items-center text-sm font-medium text-[#1A1916] hover:text-[#0E7C5A] transition px-3 py-2">
-                            Log in
-                        </a>
-                        <a href="/register" class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-[#0E7C5A] hover:bg-[#0c6b4d] rounded-full px-4 py-2 transition shadow-sm">
-                            Get started <i class="ri-arrow-right-up-line"></i>
-                        </a>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </nav>
-
-
-{% if not current_user %}
-    <!-- ═══════════════════════════════════════════════════════════════ -->
-    <!--  GUEST VIEW — SmartPay landing ("Ledger" — ink & paper)         -->
-    <!-- ═══════════════════════════════════════════════════════════════ -->
-    <div class="bg-[#F6F5F1] text-[#1A1916]">
-
-    <!-- ───────── Hero ───────── -->
-    <header class="relative overflow-hidden">
-        <div class="container mx-auto px-6 pt-16 pb-20 lg:pt-24 lg:pb-28">
-            <div class="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
-
-                <!-- copy -->
-                <div class="max-w-xl">
-                    <span class="inline-flex items-center gap-3 text-xs font-semibold tracking-[0.2em] uppercase text-[#0E7C5A] mb-7">
-                        <span class="w-7 h-px bg-[#0E7C5A]"></span> Invoice intelligence
-                    </span>
-                    <h1 class="font-display text-[2.7rem] leading-[1.05] sm:text-6xl sm:leading-[1.02] font-semibold text-[#1A1916] mb-6">
-                        Know which invoices<br>will be paid late.
-                    </h1>
-                    <p class="text-lg sm:text-xl text-[#56544D] leading-relaxed mb-9">
-                        SmartPay reads your invoices and predicts which customers are likely to pay late — so you can chase the risky ones early and keep your cash flow healthy.
-                    </p>
-                    <div class="flex flex-wrap items-center gap-3">
-                        <a href="/register" class="inline-flex items-center gap-2 bg-[#0E7C5A] hover:bg-[#0c6b4d] text-white font-semibold rounded-full px-7 py-3.5 transition shadow-lg shadow-[#0E7C5A]/20 hover:-translate-y-0.5">
-                            Get started <i class="ri-arrow-right-line"></i>
-                        </a>
-                        <a href="https://github.com/gufran0007/smartpay" target="_blank" rel="noopener" class="inline-flex items-center gap-2 text-[#1A1916] font-semibold rounded-full px-6 py-3.5 border border-[#D9D6CE] hover:border-[#1A1916] transition">
-                            <i class="ri-github-fill"></i> View source
-                        </a>
-                    </div>
-                    <div class="mt-8 flex items-center gap-6 text-sm text-[#807D75]">
-                        <span class="inline-flex items-center gap-2"><i class="ri-checkbox-circle-line text-[#0E7C5A]"></i> Free to use</span>
-                        <span class="inline-flex items-center gap-2"><i class="ri-checkbox-circle-line text-[#0E7C5A]"></i> Open source</span>
-                    </div>
-                </div>
-
-                <!-- 3D hero stage -->
-                <div class="hero-stage h-[360px] sm:h-[440px] lg:h-[520px]">
-                    <div id="heroCanvas" aria-hidden="true"></div>
-
-                    <!-- graceful fallback / no-webgl composition -->
-                    <div class="fb-wrap" id="heroFallback">
-                        <div class="fb-card float-a" style="--r:-6deg; transform:translate(-92px,-72px) rotate(-6deg);">
-                            <div class="fb-strip" style="background:#0E7C5A;"></div>
-                            <div class="fb-row" style="width:90%"></div><div class="fb-row" style="width:70%"></div><div class="fb-row" style="width:80%"></div>
-                        </div>
-                        <div class="fb-card float-b" style="--r:5deg; transform:translate(82px,18px) rotate(5deg);">
-                            <div class="fb-strip" style="background:#C2613B;"></div>
-                            <div class="fb-row" style="width:85%"></div><div class="fb-row" style="width:60%"></div><div class="fb-row" style="width:75%"></div>
-                        </div>
-                        <div class="fb-card float-c" style="--r:-2deg; transform:translate(-18px,92px) rotate(-2deg);">
-                            <div class="fb-strip" style="background:#0E7C5A;"></div>
-                            <div class="fb-row" style="width:80%"></div><div class="fb-row" style="width:90%"></div><div class="fb-row" style="width:55%"></div>
-                        </div>
-                    </div>
-
-                    <!-- meaning anchors -->
-                    <div class="hero-tag" style="top:13%; right:5%;"><span class="w-2 h-2 rounded-full bg-[#0E7C5A]"></span> On time</div>
-                    <div class="hero-tag" style="bottom:15%; left:1%;"><span class="w-2 h-2 rounded-full bg-[#C2613B]"></span> At risk</div>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <!-- ───────── What it does ───────── -->
-    <section class="bg-white border-t border-[#E7E5DF]">
-        <div class="container mx-auto px-6 py-20 lg:py-28">
-            <div class="max-w-2xl mb-14 reveal">
-                <h2 class="font-display text-4xl sm:text-5xl font-semibold text-[#1A1916] mb-4">A clearer way to get paid</h2>
-                <p class="text-lg text-[#56544D]">Three simple things SmartPay does for your business.</p>
-            </div>
-            <div class="grid md:grid-cols-3 gap-px bg-[#E7E5DF] border border-[#E7E5DF] rounded-2xl overflow-hidden">
-                <div class="bg-white p-8 lg:p-10 reveal">
-                    <div class="w-12 h-12 rounded-xl bg-[#0E7C5A]/10 flex items-center justify-center mb-6"><i class="ri-radar-line text-2xl text-[#0E7C5A]"></i></div>
-                    <h3 class="font-display text-2xl font-semibold mb-3">See risk early</h3>
-                    <p class="text-[#56544D] leading-relaxed">SmartPay predicts which invoices are likely to be paid late, so you can act before they ever go overdue.</p>
-                </div>
-                <div class="bg-white p-8 lg:p-10 reveal" style="transition-delay:.1s">
-                    <div class="w-12 h-12 rounded-xl bg-[#0E7C5A]/10 flex items-center justify-center mb-6"><i class="ri-magic-line text-2xl text-[#0E7C5A]"></i></div>
-                    <h3 class="font-display text-2xl font-semibold mb-3">Less data entry</h3>
-                    <p class="text-[#56544D] leading-relaxed">Upload an invoice and the important details — customer, amount, due date — are read and filled in for you.</p>
-                </div>
-                <div class="bg-white p-8 lg:p-10 reveal" style="transition-delay:.2s">
-                    <div class="w-12 h-12 rounded-xl bg-[#0E7C5A]/10 flex items-center justify-center mb-6"><i class="ri-line-chart-line text-2xl text-[#0E7C5A]"></i></div>
-                    <h3 class="font-display text-2xl font-semibold mb-3">Protect cash flow</h3>
-                    <p class="text-[#56544D] leading-relaxed">Spend your time chasing the customers most likely to slip, and keep money arriving when you expect it.</p>
-                </div>
-            </div>
+{% block content %}
+<div class="app-body">
+    <section class="card welcome-banner">
+        <span class="eyebrow" style="color: rgba(255,255,255,0.8);">Live overview</span>
+        <h1>Welcome back</h1>
+        <p>{{ current_user.email }} — here's how your invoices and customers are tracking today.</p>
+        <div style="display:flex; gap: var(--space-3); flex-wrap: wrap;">
+            <a href="/upload" class="btn btn-primary"><i class="ri-upload-cloud-line" aria-hidden="true"></i> Upload invoice</a>
+            <a href="/ml/analytics" class="btn btn-secondary"><i class="ri-brain-line" aria-hidden="true"></i> View insights</a>
         </div>
     </section>
 
-    <!-- ───────── How it works ───────── -->
-    <section class="bg-[#F6F5F1] border-t border-[#E7E5DF]">
-        <div class="container mx-auto px-6 py-20 lg:py-28">
-            <div class="max-w-2xl mb-16 reveal">
-                <h2 class="font-display text-4xl sm:text-5xl font-semibold text-[#1A1916] mb-4">How it works</h2>
-                <p class="text-lg text-[#56544D]">From invoice to action in four steps.</p>
+    {% set _pt = paid_on_time | default(0) %}
+    {% set _lt = paid_late | default(0) %}
+    {% set _np = not_paid | default(0) %}
+    {% set _ptot = _pt + _lt + _np %}
+    {% set _lr = low_risk_count | default(0) %}
+    {% set _mr = medium_risk_count | default(0) %}
+    {% set _hr = high_risk_count | default(0) %}
+    {% set _ctot = _lr + _mr + _hr %}
+
+    <div class="stat-grid">
+        <div class="card stat-card">
+            <div class="stat-label">Total invoices</div>
+            <div class="stat-value">{{ total_invoices }}</div>
+            <div class="split-bar" style="margin-top: var(--space-3);">
+                <span style="width: {{ ((_pt/_ptot*100)|round(2)) if _ptot else 0 }}%; background: var(--success);"></span>
+                <span style="width: {{ ((_lt/_ptot*100)|round(2)) if _ptot else 0 }}%; background: var(--warning);"></span>
+                <span style="width: {{ ((_np/_ptot*100)|round(2)) if _ptot else 0 }}%; background: var(--critical);"></span>
             </div>
-            <div class="relative">
-                <div class="step-connect hidden md:block reveal"></div>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-12 relative">
-                    <div class="reveal">
-                        <div class="w-16 h-16 rounded-full bg-white border border-[#E7E5DF] flex items-center justify-center mb-5 relative z-10 shadow-sm">
-                            <span class="font-display text-2xl font-semibold text-[#0E7C5A]">1</span>
-                        </div>
-                        <h3 class="font-semibold text-lg mb-2">Upload</h3>
-                        <p class="text-[#56544D] text-sm leading-relaxed">Add an invoice as a PDF or photo — no template required.</p>
-                    </div>
-                    <div class="reveal" style="transition-delay:.1s">
-                        <div class="w-16 h-16 rounded-full bg-white border border-[#E7E5DF] flex items-center justify-center mb-5 relative z-10 shadow-sm">
-                            <span class="font-display text-2xl font-semibold text-[#0E7C5A]">2</span>
-                        </div>
-                        <h3 class="font-semibold text-lg mb-2">Extract</h3>
-                        <p class="text-[#56544D] text-sm leading-relaxed">The customer, amount and due date are read out automatically.</p>
-                    </div>
-                    <div class="reveal" style="transition-delay:.2s">
-                        <div class="w-16 h-16 rounded-full bg-white border border-[#E7E5DF] flex items-center justify-center mb-5 relative z-10 shadow-sm">
-                            <span class="font-display text-2xl font-semibold text-[#0E7C5A]">3</span>
-                        </div>
-                        <h3 class="font-semibold text-lg mb-2">Predict</h3>
-                        <p class="text-[#56544D] text-sm leading-relaxed">SmartPay scores how likely the invoice is to be paid late.</p>
-                    </div>
-                    <div class="reveal" style="transition-delay:.3s">
-                        <div class="w-16 h-16 rounded-full bg-white border border-[#E7E5DF] flex items-center justify-center mb-5 relative z-10 shadow-sm">
-                            <span class="font-display text-2xl font-semibold text-[#0E7C5A]">4</span>
-                        </div>
-                        <h3 class="font-semibold text-lg mb-2">Act</h3>
-                        <p class="text-[#56544D] text-sm leading-relaxed">Chase the risky invoices early, before they ever go overdue.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- ───────── Why it matters ───────── -->
-    <section class="bg-white border-t border-[#E7E5DF]">
-        <div class="container mx-auto px-6 py-20 lg:py-28">
-            <div class="grid lg:grid-cols-2 gap-14 items-center">
-                <div class="reveal">
-                    <h2 class="font-display text-4xl sm:text-5xl font-semibold text-[#1A1916] mb-6 leading-[1.08]">Late payments quietly drain your business</h2>
-                    <p class="text-lg text-[#56544D] leading-relaxed mb-5">
-                        A single overdue invoice can stall payroll, supplier payments and growth. Yet most tools only tell you an invoice is late <em>after</em> the deadline has already passed.
-                    </p>
-                    <p class="text-lg text-[#56544D] leading-relaxed">
-                        SmartPay flags the risky invoices up front — so you can act while it still makes a difference, instead of writing off the loss weeks later.
-                    </p>
-                </div>
-                <div class="reveal" style="transition-delay:.1s">
-                    <div class="space-y-4">
-                        <div class="bg-white border border-[#E7E5DF] rounded-2xl p-6 shadow-[0_24px_50px_-30px_rgba(26,25,22,.4)]">
-                            <div class="flex items-center justify-between mb-3">
-                                <span class="font-semibold">Invoice #2031 · ACME Ltd</span>
-                                <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#C2613B] bg-[#C2613B]/10 rounded-full px-3 py-1"><i class="ri-alert-line"></i> Likely late</span>
-                            </div>
-                            <div class="text-sm text-[#807D75] mb-4">€2,450 · due in 14 days</div>
-                            <div class="text-sm text-[#56544D] bg-[#FBF1EC] border border-[#EBD7CC] rounded-xl p-3 leading-relaxed">
-                                Flagged because this customer paid 3 of their last 4 invoices late, and this amount is about twice their usual size.
-                            </div>
-                        </div>
-                        <div class="bg-white border border-[#E7E5DF] rounded-2xl p-6 shadow-[0_24px_50px_-30px_rgba(26,25,22,.4)]">
-                            <div class="flex items-center justify-between mb-3">
-                                <span class="font-semibold">Invoice #2032 · Globex</span>
-                                <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0E7C5A] bg-[#0E7C5A]/10 rounded-full px-3 py-1"><i class="ri-check-line"></i> On track</span>
-                            </div>
-                            <div class="text-sm text-[#807D75] mb-4">€890 · due in 21 days</div>
-                            <div class="text-sm text-[#56544D] bg-[#ECF6F1] border border-[#CFE7DD] rounded-xl p-3 leading-relaxed">
-                                Reliable payer — 12 of 12 invoices paid on time over the last year.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- ───────── CTA ───────── -->
-    <section class="bg-[#1A1916] text-[#F6F5F1]">
-        <div class="container mx-auto px-6 py-20 lg:py-24">
-            <div class="max-w-3xl reveal">
-                <h2 class="font-display text-4xl sm:text-5xl font-semibold mb-5 leading-[1.05]">Start managing invoices smarter</h2>
-                <p class="text-lg text-[#B9B6AE] mb-9 max-w-xl">
-                    Create a free account and see which of your invoices need attention first — or read the full source on GitHub.
-                </p>
-                <div class="flex flex-wrap items-center gap-3">
-                    <a href="/register" class="inline-flex items-center gap-2 bg-[#12B886] hover:bg-[#0E7C5A] text-[#0a1410] font-semibold rounded-full px-7 py-3.5 transition hover:-translate-y-0.5">
-                        Get started <i class="ri-arrow-right-line"></i>
-                    </a>
-                    <a href="https://github.com/gufran0007/smartpay" target="_blank" rel="noopener" class="inline-flex items-center gap-2 text-[#F6F5F1] font-semibold rounded-full px-6 py-3.5 border border-white/25 hover:border-white/60 transition">
-                        <i class="ri-github-fill"></i> View source
-                    </a>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- ───────── Footer ───────── -->
-    <footer class="bg-[#1A1916] text-[#8A877F] border-t border-white/10">
-        <div class="container mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm">
-            <div class="flex flex-col sm:flex-row items-center gap-x-4 gap-y-1 text-center sm:text-left">
-                <span class="text-[#B9B6AE] font-semibold">SmartPay</span>
-                <span>Built with FastAPI &amp; Python by Ghufran Aslam · © 2026</span>
-            </div>
-            <div class="flex items-center gap-4">
-                <a href="https://github.com/gufran0007/smartpay" target="_blank" rel="noopener" class="hover:text-white transition" aria-label="GitHub"><i class="ri-github-fill text-lg"></i></a>
-                <a href="https://www.linkedin.com/in/ghufran-aslama6034b32fd321" target="_blank" rel="noopener" class="hover:text-white transition" aria-label="LinkedIn"><i class="ri-linkedin-box-fill text-lg"></i></a>
-            </div>
-        </div>
-    </footer>
-
-    </div><!-- /landing -->
-
-    <!-- ───────── guest scripts ───────── -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script>
-    (function () {
-        const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-        /* ── scroll reveals ── */
-        const io = new IntersectionObserver((entries) => {
-            entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); } });
-        }, { threshold: 0.18 });
-        document.querySelectorAll('.reveal, .step-connect').forEach(el => io.observe(el));
-
-        /* ── three.js hero scene ── */
-        const mount = document.getElementById('heroCanvas');
-        const fallback = document.getElementById('heroFallback');
-        if (prefersReduced || !mount || typeof THREE === 'undefined') return; // keep CSS fallback
-
-        let renderer;
-        try {
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        } catch (err) {
-            return; // WebGL unavailable — keep CSS fallback
-        }
-
-        let W = mount.clientWidth, H = mount.clientHeight;
-        if (!W || !H) return;
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-        renderer.setSize(W, H);
-        renderer.outputEncoding = THREE.sRGBEncoding;
-        mount.appendChild(renderer.domElement);
-        if (fallback) fallback.style.display = 'none';
-
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 100);
-        camera.position.set(0, 0, 15);
-
-        scene.add(new THREE.AmbientLight(0xffffff, 0.9));
-        const key = new THREE.DirectionalLight(0xffffff, 0.65); key.position.set(6, 10, 12); scene.add(key);
-        const rim = new THREE.DirectionalLight(0x12b886, 0.22); rim.position.set(-9, -5, 5); scene.add(rim);
-
-        const group = new THREE.Group();
-        group.rotation.z = 0.05;
-        scene.add(group);
-
-        const COL = { paid: 0x0e7c5a, risk: 0xc2613b, neutral: 0xd9d6ce };
-        function makeCard(state) {
-            const g = new THREE.Group();
-            const w = 2.1, h = 2.75, d = 0.1;
-            g.add(new THREE.Mesh(
-                new THREE.BoxGeometry(w, h, d),
-                new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, metalness: 0.0 })
-            ));
-            const accent = COL[state];
-            const strip = new THREE.Mesh(
-                new THREE.BoxGeometry(w, 0.46, d + 0.02),
-                new THREE.MeshStandardMaterial({ color: accent, roughness: 0.45, emissive: accent, emissiveIntensity: 0.18 })
-            );
-            strip.position.set(0, h / 2 - 0.33, 0.01);
-            g.add(strip);
-            const lineMat = new THREE.MeshStandardMaterial({ color: 0xe7e5df, roughness: 0.85 });
-            for (let i = 0; i < 4; i++) {
-                const lw = 1.5 - i * 0.22;
-                const ln = new THREE.Mesh(new THREE.BoxGeometry(lw, 0.13, d + 0.01), lineMat);
-                ln.position.set(-(1.5 - lw) / 2, 0.35 - i * 0.5, 0.06);
-                g.add(ln);
-            }
-            return g;
-        }
-
-        const layout = ['paid', 'risk', 'neutral', 'paid', 'neutral', 'risk', 'paid', 'risk', 'neutral', 'paid', 'neutral', 'risk'];
-        const cards = [];
-        const N = layout.length;
-        for (let i = 0; i < N; i++) {
-            const st = layout[i];
-            const c = makeCard(st);
-            const lane = st === 'paid' ? 3.0 : st === 'risk' ? -3.0 : (Math.random() * 1.4 - 0.7);
-            c.userData = {
-                x: lane,
-                speed: 0.55 + Math.random() * 0.5,
-                sway: Math.random() * Math.PI * 2
-            };
-            c.position.set(lane, (i / N) * 18 - 9, -1 - Math.random() * 5);
-            c.scale.setScalar(0.7 + Math.random() * 0.45);
-            group.add(c);
-            cards.push(c);
-        }
-
-        /* pointer parallax */
-        let tmx = 0, tmy = 0, mx = 0, my = 0;
-        if (window.matchMedia('(pointer:fine)').matches) {
-            window.addEventListener('mousemove', (e) => {
-                tmx = e.clientX / window.innerWidth - 0.5;
-                tmy = e.clientY / window.innerHeight - 0.5;
-            }, { passive: true });
-        }
-
-        const clock = new THREE.Clock();
-        let elapsed = 0, rafId = null, running = false;
-        function render() {
-            const dt = Math.min(clock.getDelta(), 0.05);
-            elapsed += dt;
-            const t = elapsed;
-            for (const c of cards) {
-                const u = c.userData;
-                c.position.y += u.speed * dt * 1.4;
-                if (c.position.y > 10.5) c.position.y = -10.5;
-                c.position.x = u.x + Math.sin(t * 0.45 + u.sway) * 0.3;
-                c.rotation.y = Math.sin(t * 0.4 + u.sway) * 0.4 - 0.08;
-                c.rotation.x = Math.sin(t * 0.32 + u.sway) * 0.12;
-            }
-            mx += (tmx - mx) * 0.05; my += (tmy - my) * 0.05;
-            camera.position.x = mx * 2.4;
-            camera.position.y = -my * 1.6;
-            camera.lookAt(0, 0, 0);
-            renderer.render(scene, camera);
-            rafId = requestAnimationFrame(render);
-        }
-        function start() { if (running) return; running = true; clock.start(); render(); }
-        function stop() { running = false; if (rafId) cancelAnimationFrame(rafId); rafId = null; }
-
-        /* pause when the hero scrolls out of view */
-        const vis = new IntersectionObserver((entries) => {
-            entries.forEach(e => e.isIntersecting ? start() : stop());
-        }, { threshold: 0.05 });
-        vis.observe(mount);
-
-        /* responsive resize */
-        let rt;
-        window.addEventListener('resize', () => {
-            clearTimeout(rt);
-            rt = setTimeout(() => {
-                W = mount.clientWidth; H = mount.clientHeight;
-                if (!W || !H) return;
-                camera.aspect = W / H;
-                camera.updateProjectionMatrix();
-                renderer.setSize(W, H);
-            }, 150);
-        }, { passive: true });
-    })();
-    </script>
-
-
-{% else %}
-    <!-- ═══════════════════════════════════════════════════════════════ -->
-    <!--  LOGGED IN VIEW — Full working dashboard                      -->
-    <!-- ═══════════════════════════════════════════════════════════════ -->
-
-    <main class="container mx-auto px-6 py-8">
-
-        <!-- Welcome banner (header) -->
-        <section class="dash-card dash-rise relative overflow-hidden mb-7">
-            <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1600&q=80" alt="" class="absolute inset-0 w-full h-full object-cover">
-            <div class="absolute inset-0" style="background:linear-gradient(100deg,#13322a 0%,rgba(14,124,90,.9) 46%,rgba(19,50,42,.5) 100%);"></div>
-            <div id="dashStage" aria-hidden="true"></div>
-            <div class="relative z-10 px-6 py-8 sm:px-9 sm:py-10 text-white">
-                <span class="inline-flex items-center gap-2 text-[11px] font-semibold tracking-[0.2em] uppercase text-white/80 mb-3">
-                    <span class="w-2 h-2 rounded-full" style="background:#7ce0bd"></span> Live overview
-                </span>
-                <h1 class="font-display text-3xl sm:text-4xl font-semibold mb-2">Welcome back</h1>
-                <p class="text-white/85 max-w-xl mb-6 text-sm sm:text-base">{{ current_user.email }} — here's how your invoices and customers are tracking today.</p>
-                <div class="flex flex-wrap gap-3">
-                    <a href="/upload" class="inline-flex items-center gap-2 bg-white text-[#0E7C5A] font-semibold rounded-full px-5 py-2.5 text-sm hover:bg-[#F6F5F1] transition"><i class="ri-upload-cloud-line"></i> Upload invoice</a>
-                    <a href="/ml/analytics" class="inline-flex items-center gap-2 border border-white/40 text-white font-semibold rounded-full px-5 py-2.5 text-sm hover:bg-white/10 transition"><i class="ri-brain-line"></i> View insights</a>
-                </div>
-            </div>
-        </section>
-
-        {# real-data splits for the KPI mini-charts #}
-        {% set _pt = paid_on_time | default(0) %}
-        {% set _lt = paid_late | default(0) %}
-        {% set _np = not_paid | default(0) %}
-        {% set _ptot = _pt + _lt + _np %}
-        {% set _lr = low_risk_count | default(0) %}
-        {% set _mr = medium_risk_count | default(0) %}
-        {% set _hr = high_risk_count | default(0) %}
-        {% set _ctot = _lr + _mr + _hr %}
-
-        <!-- KPI cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-7">
-
-            <!-- Total invoices -->
-            <div class="dash-card dash-card-h dash-rise p-5">
-                <div class="flex items-start justify-between mb-4">
-                    <div>
-                        <p class="text-[#807D75] text-sm">Total Invoices</p>
-                        <p class="font-display text-4xl font-semibold text-[#1A1916] tnum mt-1" data-count="{{ total_invoices | default(0) }}">{{ total_invoices }}</p>
-                    </div>
-                    <span class="w-10 h-10 rounded-xl bg-[#0E7C5A]/10 flex items-center justify-center"><i class="ri-file-list-3-line text-[#0E7C5A] text-lg"></i></span>
-                </div>
-                <div class="seg mb-2">
-                    <i style="width: {{ ((_pt/_ptot*100)|round(2)) if _ptot else 0 }}%; background:#0E7C5A"></i>
-                    <i style="width: {{ ((_lt/_ptot*100)|round(2)) if _ptot else 0 }}%; background:#D29B3A"></i>
-                    <i style="width: {{ ((_np/_ptot*100)|round(2)) if _ptot else 0 }}%; background:#C2613B"></i>
-                </div>
-                <div class="flex items-center gap-3 text-[11px] text-[#807D75]">
-                    <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#0E7C5A"></span>On time {{ _pt }}</span>
-                    <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#D29B3A"></span>Late {{ _lt }}</span>
-                    <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#C2613B"></span>Unpaid {{ _np }}</span>
-                </div>
-            </div>
-
-            <!-- Customers -->
-            <div class="dash-card dash-card-h dash-rise p-5" style="animation-delay:.06s">
-                <div class="flex items-start justify-between mb-4">
-                    <div>
-                        <p class="text-[#807D75] text-sm">Customers</p>
-                        <p class="font-display text-4xl font-semibold text-[#1A1916] tnum mt-1" data-count="{{ total_customers | default(0) }}">{{ total_customers }}</p>
-                    </div>
-                    <span class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:rgba(26,25,22,.06)"><i class="ri-group-line text-[#1A1916] text-lg"></i></span>
-                </div>
-                <div class="seg mb-2">
-                    <i style="width: {{ ((_lr/_ctot*100)|round(2)) if _ctot else 0 }}%; background:#0E7C5A"></i>
-                    <i style="width: {{ ((_mr/_ctot*100)|round(2)) if _ctot else 0 }}%; background:#D29B3A"></i>
-                    <i style="width: {{ ((_hr/_ctot*100)|round(2)) if _ctot else 0 }}%; background:#C2613B"></i>
-                </div>
-                <div class="flex items-center gap-3 text-[11px] text-[#807D75]">
-                    <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#0E7C5A"></span>Low {{ _lr }}</span>
-                    <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#D29B3A"></span>Med {{ _mr }}</span>
-                    <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#C2613B"></span>High {{ _hr }}</span>
-                </div>
-            </div>
-
-            <!-- High risk -->
-            <div class="dash-card dash-card-h dash-rise p-5" style="animation-delay:.12s">
-                <div class="flex items-start justify-between mb-4">
-                    <div>
-                        <p class="text-[#807D75] text-sm">High Risk</p>
-                        <p class="font-display text-4xl font-semibold text-[#C2613B] tnum mt-1" data-count="{{ high_risk_count | default(0) }}">{{ high_risk_count }}</p>
-                    </div>
-                    <span class="w-10 h-10 rounded-xl bg-[#C2613B]/10 flex items-center justify-center"><i class="ri-alert-line text-[#C2613B] text-lg"></i></span>
-                </div>
-                <div class="flex items-center justify-between">
-                    <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#C2613B] bg-[#C2613B]/10 rounded-full px-2.5 py-1"><i class="ri-error-warning-line"></i> Needs attention</span>
-                    <span class="text-[11px] text-[#807D75] tnum">{{ ((_hr/_ctot*100)|round)|int if _ctot else 0 }}% of customers</span>
-                </div>
-            </div>
-
-            <!-- Avg reliability -->
-            <div class="dash-card dash-card-h dash-rise p-5" style="animation-delay:.18s">
-                <div class="flex items-start justify-between mb-4">
-                    <div>
-                        <p class="text-[#807D75] text-sm">Avg Reliability</p>
-                        <p class="font-display text-4xl font-semibold text-[#0E7C5A] tnum mt-1" data-count="{{ avg_reliability | default(0) }}" data-suffix="%">{{ avg_reliability }}%</p>
-                    </div>
-                    <div class="ring" data-ring="{{ avg_reliability | default(0) }}"><span class="tnum" data-count="{{ avg_reliability | default(0) }}">0</span></div>
-                </div>
-                <div class="flex items-center justify-between">
-                    {% if (avg_reliability | default(0)) >= 70 %}
-                    <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0E7C5A] bg-[#0E7C5A]/10 rounded-full px-2.5 py-1"><i class="ri-shield-check-line"></i> Healthy</span>
-                    {% else %}
-                    <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#D29B3A] bg-[#D29B3A]/20 rounded-full px-2.5 py-1"><i class="ri-shield-line"></i> Watch</span>
-                    {% endif %}
-                    <span class="text-[11px] text-[#807D75]">portfolio health</span>
-                </div>
+            <div class="split-legend">
+                <span><span class="dot" style="background: var(--success);"></span>On time {{ _pt }}</span>
+                <span><span class="dot" style="background: var(--warning);"></span>Late {{ _lt }}</span>
+                <span><span class="dot" style="background: var(--critical);"></span>Unpaid {{ _np }}</span>
             </div>
         </div>
 
-        <!-- Charts -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-7">
-            <div class="dash-card d-reveal p-6">
-                <h2 class="font-display text-xl font-semibold text-[#1A1916] flex items-center gap-2"><i class="ri-donut-chart-line text-[#0E7C5A]"></i> Customer Risk Distribution</h2>
-                <p class="text-sm text-[#807D75] mb-4">How your customers split across risk levels.</p>
-                <div class="h-60">
-                    <canvas id="riskPieChart"></canvas>
-                </div>
-                <div class="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-[#F0EEE8] text-center">
-                    <div><div class="text-[11px] text-[#807D75] mb-0.5">Low</div><div class="font-semibold text-[#0E7C5A] tnum">{{ _lr }}</div></div>
-                    <div><div class="text-[11px] text-[#807D75] mb-0.5">Medium</div><div class="font-semibold text-[#D29B3A] tnum">{{ _mr }}</div></div>
-                    <div><div class="text-[11px] text-[#807D75] mb-0.5">High</div><div class="font-semibold text-[#C2613B] tnum">{{ _hr }}</div></div>
-                </div>
+        <div class="card stat-card">
+            <div class="stat-label">Customers</div>
+            <div class="stat-value">{{ total_customers }}</div>
+            <div class="split-bar" style="margin-top: var(--space-3);">
+                <span style="width: {{ ((_lr/_ctot*100)|round(2)) if _ctot else 0 }}%; background: var(--success);"></span>
+                <span style="width: {{ ((_mr/_ctot*100)|round(2)) if _ctot else 0 }}%; background: var(--warning);"></span>
+                <span style="width: {{ ((_hr/_ctot*100)|round(2)) if _ctot else 0 }}%; background: var(--critical);"></span>
             </div>
-            <div class="dash-card d-reveal p-6" style="transition-delay:.1s">
-                <h2 class="font-display text-xl font-semibold text-[#1A1916] flex items-center gap-2"><i class="ri-bar-chart-2-line text-[#0E7C5A]"></i> Payment Behavior</h2>
-                <p class="text-sm text-[#807D75] mb-4">On-time vs late vs unpaid invoices.</p>
-                <div class="h-60">
-                    <canvas id="paymentBarChart"></canvas>
-                </div>
-                <div class="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-[#F0EEE8] text-center">
-                    <div><div class="text-[11px] text-[#807D75] mb-0.5">On time</div><div class="font-semibold text-[#0E7C5A] tnum">{{ _pt }}</div></div>
-                    <div><div class="text-[11px] text-[#807D75] mb-0.5">Late</div><div class="font-semibold text-[#D29B3A] tnum">{{ _lt }}</div></div>
-                    <div><div class="text-[11px] text-[#807D75] mb-0.5">Not paid</div><div class="font-semibold text-[#C2613B] tnum">{{ _np }}</div></div>
-                </div>
+            <div class="split-legend">
+                <span><span class="dot" style="background: var(--success);"></span>Low {{ _lr }}</span>
+                <span><span class="dot" style="background: var(--warning);"></span>Med {{ _mr }}</span>
+                <span><span class="dot" style="background: var(--critical);"></span>High {{ _hr }}</span>
             </div>
         </div>
 
-        <!-- Quick actions + High risk -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-7">
-            <div class="dash-card d-reveal p-6">
-                <h2 class="font-display text-xl font-semibold text-[#1A1916] mb-4 flex items-center gap-2"><i class="ri-flashlight-line text-[#0E7C5A]"></i> Quick Actions</h2>
-                <div class="space-y-2.5">
-                    <a href="/upload" class="w-full inline-flex items-center gap-2.5 bg-[#0E7C5A] hover:bg-[#0c6b4d] text-white font-semibold rounded-xl px-4 py-3 transition"><i class="ri-upload-cloud-line text-lg"></i> Upload Invoice</a>
-                    <a href="/upload-csv" class="w-full inline-flex items-center gap-2.5 border border-[#E7E5DF] text-[#1A1916] font-medium rounded-xl px-4 py-3 hover:border-[#0E7C5A] hover:text-[#0E7C5A] hover:bg-[#0E7C5A]/5 transition"><i class="ri-file-excel-2-line text-lg text-[#807D75]"></i> Upload CSV Data</a>
-                    <a href="/ml/train" class="w-full inline-flex items-center gap-2.5 border border-[#E7E5DF] text-[#1A1916] font-medium rounded-xl px-4 py-3 hover:border-[#0E7C5A] hover:text-[#0E7C5A] hover:bg-[#0E7C5A]/5 transition"><i class="ri-brain-line text-lg text-[#807D75]"></i> Train ML Model</a>
-                    <a href="/view-data" class="w-full inline-flex items-center gap-2.5 border border-[#E7E5DF] text-[#1A1916] font-medium rounded-xl px-4 py-3 hover:border-[#0E7C5A] hover:text-[#0E7C5A] hover:bg-[#0E7C5A]/5 transition"><i class="ri-table-line text-lg text-[#807D75]"></i> View All Invoices</a>
-                </div>
+        <div class="card stat-card">
+            <div class="stat-label">High risk</div>
+            <div class="stat-value" style="color: var(--critical);">{{ high_risk_count }}</div>
+            <div class="stat-sub">
+                <span class="pill pill-critical"><span class="pill-dot"></span>Needs attention</span>
             </div>
-            <div class="dash-card d-reveal p-6 lg:col-span-2" style="transition-delay:.1s">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="font-display text-xl font-semibold text-[#1A1916] flex items-center gap-2"><i class="ri-alert-line text-[#C2613B]"></i> High Risk Customers</h2>
-                    {% if high_risk_customers %}<span class="text-xs text-[#807D75]">Top {{ high_risk_customers[:5]|length }}</span>{% endif %}
-                </div>
-                {% if high_risk_customers %}
-                <div class="overflow-x-auto -mx-2 px-2">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="text-left text-[#807D75] border-b border-[#E7E5DF]">
-                                <th class="font-medium pb-3 pr-3">Customer</th>
-                                <th class="font-medium pb-3 pr-3">Invoices</th>
-                                <th class="font-medium pb-3 pr-3">Late</th>
-                                <th class="font-medium pb-3 pr-3">Reliability</th>
-                                <th class="pb-3"></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for c in high_risk_customers[:5] %}
-                            <tr class="border-b border-[#F0EEE8] hover:bg-[#0E7C5A]/5 transition">
-                                <td class="py-3 pr-3 font-medium text-[#1A1916]">{{ c.name[:20] }}</td>
-                                <td class="py-3 pr-3 text-[#56544D] tnum">{{ c.total_invoices }}</td>
-                                <td class="py-3 pr-3 text-[#C2613B] font-medium tnum">{{ c.paid_late }}</td>
-                                <td class="py-3 pr-3">
-                                    <div class="flex items-center gap-2">
-                                        <span class="inline-block w-20 h-1.5 rounded-full bg-[#ECEAE3] overflow-hidden">
-                                            <span class="block h-full bg-[#C2613B]" style="width: {{ (c.payment_reliability * 100)|int }}%"></span>
-                                        </span>
-                                        <span class="text-xs text-[#56544D] tnum">{{ (c.payment_reliability * 100)|int }}%</span>
-                                    </div>
-                                </td>
-                                <td class="py-3 text-right"><a href="/customer-insights/{{ c.name }}" aria-label="View {{ c.name }} insights" class="inline-flex w-8 h-8 items-center justify-center rounded-lg text-[#807D75] hover:text-[#0E7C5A] hover:bg-[#0E7C5A]/10 transition"><i class="ri-eye-line"></i></a></td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                <a href="/customers" class="mt-4 w-full inline-flex items-center justify-center gap-2 border border-[#E7E5DF] text-[#1A1916] font-medium rounded-xl px-4 py-2.5 hover:border-[#0E7C5A] hover:text-[#0E7C5A] transition text-sm">View all customers <i class="ri-arrow-right-line"></i></a>
+        </div>
+
+        <div class="card stat-card">
+            <div class="stat-label">Avg reliability</div>
+            <div style="display:flex; align-items:center; gap: var(--space-3); margin-top: 4px;">
+                <div class="ring" style="--p: {{ avg_reliability | default(0) }};"><span>{{ avg_reliability }}%</span></div>
+                {% if (avg_reliability | default(0)) >= 70 %}
+                <span class="pill pill-success"><span class="pill-dot"></span>Healthy</span>
                 {% else %}
-                <div class="text-center py-10">
-                    <span class="inline-flex w-14 h-14 rounded-2xl bg-[#0E7C5A]/10 items-center justify-center mb-3"><i class="ri-shield-check-line text-3xl text-[#0E7C5A]"></i></span>
-                    <p class="text-[#56544D] font-medium">No high-risk customers</p>
-                    <p class="text-sm text-[#807D75]">Your portfolio looks healthy.</p>
-                </div>
+                <span class="pill pill-warning"><span class="pill-dot"></span>Watch</span>
                 {% endif %}
             </div>
         </div>
+    </div>
 
-        <!-- AI insights promo -->
-        <section class="dash-card d-reveal overflow-hidden mb-7 grid md:grid-cols-2">
-            <div class="p-7 sm:p-9 order-2 md:order-1">
-                <span class="inline-flex items-center gap-2 text-[11px] font-semibold tracking-[0.2em] uppercase text-[#0E7C5A] mb-3"><span class="w-6 h-px bg-[#0E7C5A]"></span> AI insights</span>
-                <h2 class="font-display text-2xl sm:text-3xl font-semibold text-[#1A1916] mb-3">Chase the right invoices first</h2>
-                <p class="text-[#56544D] mb-6 max-w-md">SmartPay scores every invoice by payment risk and explains why — so you can focus your follow-ups where they matter and protect your cash flow.</p>
-                <a href="/ml/analytics" class="inline-flex items-center gap-2 bg-[#0E7C5A] hover:bg-[#0c6b4d] text-white font-semibold rounded-full px-6 py-3 transition"><i class="ri-line-chart-line"></i> Open analytics</a>
+    <div class="charts-grid">
+        <div class="card panel">
+            <div class="panel-head"><h2>Customer risk distribution</h2></div>
+            <p class="text-slate" style="font-size: var(--text-sm); margin-top: -8px;">How your customers split across risk levels.</p>
+            <div style="height: 220px;"><canvas id="riskPieChart"></canvas></div>
+            <div class="chart-summary">
+                <div><div class="label">Low</div><div class="text-success" style="font-weight:600;">{{ _lr }}</div></div>
+                <div><div class="label">Medium</div><div style="color: var(--warning); font-weight:600;">{{ _mr }}</div></div>
+                <div><div class="label">High</div><div class="text-critical" style="font-weight:600;">{{ _hr }}</div></div>
             </div>
-            <div class="relative min-h-[200px] order-1 md:order-2">
-                <img src="https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1200&q=80" alt="" class="absolute inset-0 w-full h-full object-cover">
-                <div class="absolute inset-0 hidden md:block" style="background:linear-gradient(90deg,#fff 0%,rgba(255,255,255,.12) 46%,transparent 100%);"></div>
-                <div class="absolute inset-0 md:hidden" style="background:linear-gradient(0deg,#fff 0%,transparent 62%);"></div>
+        </div>
+        <div class="card panel">
+            <div class="panel-head"><h2>Payment behavior</h2></div>
+            <p class="text-slate" style="font-size: var(--text-sm); margin-top: -8px;">On-time vs late vs unpaid invoices.</p>
+            <div style="height: 220px;"><canvas id="paymentBarChart"></canvas></div>
+            <div class="chart-summary">
+                <div><div class="label">On time</div><div class="text-success" style="font-weight:600;">{{ _pt }}</div></div>
+                <div><div class="label">Late</div><div style="color: var(--warning); font-weight:600;">{{ _lt }}</div></div>
+                <div><div class="label">Not paid</div><div class="text-critical" style="font-weight:600;">{{ _np }}</div></div>
             </div>
-        </section>
+        </div>
+    </div>
 
-        <!-- Recent invoices -->
-        <div class="dash-card d-reveal p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="font-display text-xl font-semibold text-[#1A1916] flex items-center gap-2"><i class="ri-time-line text-[#0E7C5A]"></i> Recent Invoices</h2>
-                <a href="/view-data" class="inline-flex items-center gap-1.5 text-sm font-medium text-[#56544D] hover:text-[#0E7C5A] transition">View all <i class="ri-arrow-right-line"></i></a>
+    <div class="quick-actions-grid">
+        <div class="card panel quick-actions">
+            <div class="panel-head"><h2>Quick actions</h2></div>
+            <a href="/upload" class="btn btn-primary"><i class="ri-upload-cloud-line" aria-hidden="true"></i> Upload invoice</a>
+            <a href="/import" class="btn btn-secondary"><i class="ri-file-excel-2-line" aria-hidden="true"></i> Import invoice history</a>
+            <a href="/ml/train" class="btn btn-secondary"><i class="ri-brain-line" aria-hidden="true"></i> Train ML model</a>
+            <a href="/view-data" class="btn btn-secondary"><i class="ri-table-line" aria-hidden="true"></i> View all invoices</a>
+        </div>
+        <div class="card panel">
+            <div class="panel-head">
+                <h2><i class="ri-alert-line text-critical" aria-hidden="true"></i> High risk customers</h2>
+                {% if high_risk_customers %}<span class="text-slate" style="font-size: var(--text-xs);">Top {{ high_risk_customers[:5]|length }}</span>{% endif %}
             </div>
-            {% if recent_invoices %}
-            <div class="overflow-x-auto -mx-2 px-2">
-                <table class="w-full text-sm">
+            {% if high_risk_customers %}
+            <div class="table-scroll">
+                <table class="data-table">
                     <thead>
-                        <tr class="text-left text-[#807D75] border-b border-[#E7E5DF]">
-                            <th class="font-medium pb-3 pr-3">Invoice #</th>
-                            <th class="font-medium pb-3 pr-3">Customer</th>
-                            <th class="font-medium pb-3 pr-3">Amount</th>
-                            <th class="font-medium pb-3 pr-3">Due Date</th>
-                            <th class="font-medium pb-3 pr-3">Risk</th>
-                            <th class="pb-3"></th>
-                        </tr>
+                        <tr><th>Customer</th><th>Invoices</th><th>Late</th><th>Reliability</th><th></th></tr>
                     </thead>
                     <tbody>
-                        {% for inv in recent_invoices %}
-                        <tr class="border-b border-[#F0EEE8] hover:bg-[#0E7C5A]/5 transition">
-                            <td class="py-3 pr-3 font-medium text-[#1A1916]">#{{ inv.invoice_number or inv.id }}</td>
-                            <td class="py-3 pr-3 text-[#56544D]">{{ inv.customer_name if inv.customer_name and inv.customer_name != 'N/A' else '—' }}</td>
-                            <td class="py-3 pr-3 text-[#1A1916] tnum">{{ inv.amount }} {{ inv.currency }}</td>
-                            <td class="py-3 pr-3 text-[#56544D] tnum">{{ inv.due_date if inv.due_date and inv.due_date != 'N/A' else '—' }}</td>
-                            <td class="py-3 pr-3">
-                                {% if inv.features and inv.features.predicted_label == 1 %}
-                                <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#C2613B] bg-[#C2613B]/10 rounded-full px-2.5 py-1"><span class="w-1.5 h-1.5 rounded-full bg-[#C2613B]"></span> High</span>
-                                {% elif inv.features and inv.features.predicted_label == 0 %}
-                                <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0E7C5A] bg-[#0E7C5A]/10 rounded-full px-2.5 py-1"><span class="w-1.5 h-1.5 rounded-full bg-[#0E7C5A]"></span> Low</span>
-                                {% else %}
-                                <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#807D75] bg-[#1A1916]/5 rounded-full px-2.5 py-1">—</span>
-                                {% endif %}
+                        {% for c in high_risk_customers[:5] %}
+                        <tr>
+                            <td data-label="Customer" class="primary-cell">{{ c.name[:20] }}</td>
+                            <td data-label="Invoices">{{ c.total_invoices }}</td>
+                            <td data-label="Late" class="text-critical">{{ c.paid_late }}</td>
+                            <td data-label="Reliability">
+                                <span class="meter"><span style="width: {{ (c.payment_reliability * 100)|int }}%; background: var(--critical);"></span></span>
+                                {{ (c.payment_reliability * 100)|int }}%
                             </td>
-                            <td class="py-3 text-right"><a href="/view-invoice/{{ inv.id }}" aria-label="View invoice" class="inline-flex w-8 h-8 items-center justify-center rounded-lg text-[#807D75] hover:text-[#0E7C5A] hover:bg-[#0E7C5A]/10 transition"><i class="ri-eye-line"></i></a></td>
+                            <td data-label=""><a href="/customer-insights/{{ c.name }}" aria-label="View {{ c.name }} insights" class="btn btn-ghost btn-icon btn-sm"><i class="ri-eye-line" aria-hidden="true"></i></a></td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+            <a href="/customers" class="btn btn-secondary btn-block" style="margin-top: var(--space-4);">View all customers <i class="ri-arrow-right-line" aria-hidden="true"></i></a>
             {% else %}
-            <div class="text-center py-12">
-                <span class="inline-flex w-16 h-16 rounded-2xl bg-[#1A1916]/5 items-center justify-center mb-4"><i class="ri-inbox-line text-4xl text-[#807D75]"></i></span>
-                <p class="text-[#56544D] font-medium mb-1">No invoices yet</p>
-                <p class="text-sm text-[#807D75] mb-5">Upload your first invoice to get started.</p>
-                <a href="/upload" class="inline-flex items-center gap-2 bg-[#0E7C5A] hover:bg-[#0c6b4d] text-white font-semibold rounded-full px-6 py-3 transition"><i class="ri-upload-cloud-line"></i> Upload Your First Invoice</a>
+            <div class="state-box">
+                <div class="state-icon"><i class="ri-shield-check-line" aria-hidden="true"></i></div>
+                <strong>No high-risk customers</strong>
+                Your portfolio looks healthy.
             </div>
             {% endif %}
         </div>
-    </main>
+    </div>
 
-    <script>
-        var lowRisk = {{ low_risk_count | default(0) }};
-        var mediumRisk = {{ medium_risk_count | default(0) }};
-        var highRisk = {{ high_risk_count | default(0) }};
-        var onTime = {{ paid_on_time | default(0) }};
-        var late = {{ paid_late | default(0) }};
-        var unpaid = {{ not_paid | default(0) }};
+    <div class="card panel">
+        <div class="panel-head">
+            <h2><i class="ri-time-line" aria-hidden="true"></i> Recent invoices</h2>
+            <a href="/view-data" class="panel-link">View all <i class="ri-arrow-right-line" aria-hidden="true"></i></a>
+        </div>
+        {% if recent_invoices %}
+        <div class="table-scroll">
+            <table class="data-table">
+                <thead>
+                    <tr><th>Invoice #</th><th>Customer</th><th>Amount</th><th>Due date</th><th>Risk</th><th></th></tr>
+                </thead>
+                <tbody>
+                    {% for inv in recent_invoices %}
+                    <tr>
+                        <td data-label="Invoice #" class="primary-cell">#{{ inv.invoice_number or inv.id }}</td>
+                        <td data-label="Customer">{{ inv.customer_name if inv.customer_name and inv.customer_name != 'N/A' else '—' }}</td>
+                        <td data-label="Amount" class="amount">{{ inv.amount }} {{ inv.currency }}</td>
+                        <td data-label="Due date">{{ inv.due_date if inv.due_date and inv.due_date != 'N/A' else '—' }}</td>
+                        <td data-label="Risk">
+                            {% if inv.features and inv.features.predicted_label == 1 %}
+                            <span class="pill pill-critical"><span class="pill-dot"></span>High</span>
+                            {% elif inv.features and inv.features.predicted_label == 0 %}
+                            <span class="pill pill-success"><span class="pill-dot"></span>Low</span>
+                            {% else %}
+                            <span class="pill pill-neutral">—</span>
+                            {% endif %}
+                        </td>
+                        <td data-label=""><a href="/view-invoice/{{ inv.id }}" aria-label="View invoice" class="btn btn-ghost btn-icon btn-sm"><i class="ri-eye-line" aria-hidden="true"></i></a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="state-box">
+            <div class="state-icon"><i class="ri-inbox-line" aria-hidden="true"></i></div>
+            <strong>No invoices yet</strong>
+            Upload your first invoice to get started.
+            <div style="margin-top: var(--space-4);">
+                <a href="/upload" class="btn btn-primary"><i class="ri-upload-cloud-line" aria-hidden="true"></i> Upload your first invoice</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
 
-        new Chart(document.getElementById('riskPieChart'), {
-            type: 'doughnut',
-            data: {
-                labels: ['Low Risk', 'Medium Risk', 'High Risk'],
-                datasets: [{ data: [lowRisk, mediumRisk, highRisk], backgroundColor: ['#0E7C5A', '#D29B3A', '#C2613B'], borderColor: '#ffffff', borderWidth: 3, hoverOffset: 6 }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, cutout: '66%', plugins: { legend: { position: 'bottom', labels: { color: '#56544D', usePointStyle: true, pointStyle: 'circle', padding: 16, font: { family: 'Inter', size: 12 } } } } }
-        });
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    var lowRisk = {{ low_risk_count | default(0) }};
+    var mediumRisk = {{ medium_risk_count | default(0) }};
+    var highRisk = {{ high_risk_count | default(0) }};
+    var onTime = {{ paid_on_time | default(0) }};
+    var late = {{ paid_late | default(0) }};
+    var unpaid = {{ not_paid | default(0) }};
 
-        new Chart(document.getElementById('paymentBarChart'), {
-            type: 'bar',
-            data: {
-                labels: ['On Time', 'Late', 'Not Paid'],
-                datasets: [{ data: [onTime, late, unpaid], backgroundColor: ['#0E7C5A', '#D29B3A', '#C2613B'], borderRadius: 8, maxBarThickness: 56 }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#EDEBE4' }, ticks: { color: '#807D75', font: { family: 'Inter' } } }, x: { grid: { display: false }, ticks: { color: '#56544D', font: { family: 'Inter' } } } } }
-        });
-    </script>
+    var tokenStyle = getComputedStyle(document.documentElement);
+    var signal = tokenStyle.getPropertyValue('--success').trim() || '#2E8B57';
+    var warning = tokenStyle.getPropertyValue('--warning').trim() || '#9A6B0B';
+    var critical = tokenStyle.getPropertyValue('--critical').trim() || '#C0392B';
+    var slate = tokenStyle.getPropertyValue('--slate').trim() || '#667370';
+    var border = tokenStyle.getPropertyValue('--border').trim() || '#E2E7E5';
 
-    <!-- scroll reveal · count-up · animated ring/bars -->
-    <script>
-    (function () {
-        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    new Chart(document.getElementById('riskPieChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Low Risk', 'Medium Risk', 'High Risk'],
+            datasets: [{ data: [lowRisk, mediumRisk, highRisk], backgroundColor: [signal, warning, critical], borderColor: '#ffffff', borderWidth: 3, hoverOffset: 6 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '66%', plugins: { legend: { position: 'bottom', labels: { color: slate, usePointStyle: true, pointStyle: 'circle', padding: 16 } } } }
+    });
 
-        function countUp(el) {
-            const target = parseFloat(el.dataset.count) || 0;
-            const suffix = el.dataset.suffix || '';
-            if (reduce) { el.textContent = Math.round(target) + suffix; return; }
-            const dur = 1100, t0 = performance.now();
-            (function tick(now) {
-                const p = Math.min((now - t0) / dur, 1);
-                const eased = 1 - Math.pow(1 - p, 3);
-                el.textContent = Math.round(target * eased) + suffix;
-                if (p < 1) requestAnimationFrame(tick);
-            })(t0);
-        }
-
-        const io = new IntersectionObserver((entries) => {
-            entries.forEach(en => {
-                if (!en.isIntersecting) return;
-                const el = en.target;
-                el.classList.add('is-in');
-                if (el.dataset.count !== undefined) countUp(el);
-                if (el.dataset.ring !== undefined) el.style.setProperty('--p', el.dataset.ring);
-                io.unobserve(el);
-            });
-        }, { threshold: 0.2 });
-        document.querySelectorAll('.d-reveal, .seg, [data-count], [data-ring]').forEach(el => io.observe(el));
-    })();
-    </script>
-
-    <!-- 3D ledger scene inside the welcome banner -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script>
-    (function () {
-        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        const mount = document.getElementById('dashStage');
-        if (reduce || !mount || typeof THREE === 'undefined') return;
-
-        let renderer;
-        try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); }
-        catch (err) { return; }
-
-        let W = mount.clientWidth, H = mount.clientHeight;
-        if (!W || !H) return;
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-        renderer.setSize(W, H);
-        renderer.outputEncoding = THREE.sRGBEncoding;
-        mount.appendChild(renderer.domElement);
-
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(42, W / H, 0.1, 100);
-        camera.position.set(0, 0, 15);
-
-        scene.add(new THREE.AmbientLight(0xffffff, 0.95));
-        const key = new THREE.DirectionalLight(0xffffff, 0.6); key.position.set(6, 10, 12); scene.add(key);
-        const rim = new THREE.DirectionalLight(0x7ce0bd, 0.3); rim.position.set(-8, -4, 6); scene.add(rim);
-
-        const group = new THREE.Group(); group.rotation.z = 0.04; scene.add(group);
-
-        const COL = { paid: 0x12b886, risk: 0xe0975a, neutral: 0xeae7df };
-        function makeCard(state) {
-            const g = new THREE.Group();
-            const w = 2.0, h = 2.6, d = 0.1;
-            g.add(new THREE.Mesh(
-                new THREE.BoxGeometry(w, h, d),
-                new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 })
-            ));
-            const accent = COL[state];
-            const strip = new THREE.Mesh(
-                new THREE.BoxGeometry(w, 0.44, d + 0.02),
-                new THREE.MeshStandardMaterial({ color: accent, roughness: 0.45, emissive: accent, emissiveIntensity: 0.2 })
-            );
-            strip.position.set(0, h / 2 - 0.32, 0.01); g.add(strip);
-            const lineMat = new THREE.MeshStandardMaterial({ color: 0xe7e5df, roughness: 0.85 });
-            for (let i = 0; i < 4; i++) {
-                const lw = 1.4 - i * 0.2;
-                const ln = new THREE.Mesh(new THREE.BoxGeometry(lw, 0.12, d + 0.01), lineMat);
-                ln.position.set(-(1.4 - lw) / 2, 0.32 - i * 0.48, 0.06); g.add(ln);
-            }
-            return g;
-        }
-
-        const layout = ['paid', 'risk', 'neutral', 'paid', 'neutral', 'risk', 'paid', 'neutral'];
-        const cards = [], N = layout.length;
-        for (let i = 0; i < N; i++) {
-            const st = layout[i];
-            const c = makeCard(st);
-            const lane = st === 'paid' ? 2.6 : st === 'risk' ? -2.4 : (Math.random() * 1.2 - 0.6);
-            c.userData = { x: lane, speed: 0.5 + Math.random() * 0.45, sway: Math.random() * Math.PI * 2 };
-            c.position.set(lane, (i / N) * 16 - 8, -1 - Math.random() * 4);
-            c.scale.setScalar(0.62 + Math.random() * 0.4);
-            group.add(c); cards.push(c);
-        }
-
-        let tmx = 0, tmy = 0, mx = 0, my = 0;
-        if (window.matchMedia('(pointer:fine)').matches) {
-            window.addEventListener('mousemove', (e) => {
-                tmx = e.clientX / window.innerWidth - 0.5;
-                tmy = e.clientY / window.innerHeight - 0.5;
-            }, { passive: true });
-        }
-
-        const clock = new THREE.Clock();
-        let elapsed = 0, rafId = null, running = false;
-        function render() {
-            const dt = Math.min(clock.getDelta(), 0.05); elapsed += dt;
-            const t = elapsed;
-            for (const c of cards) {
-                const u = c.userData;
-                c.position.y += u.speed * dt * 1.3;
-                if (c.position.y > 9.5) c.position.y = -9.5;
-                c.position.x = u.x + Math.sin(t * 0.45 + u.sway) * 0.28;
-                c.rotation.y = Math.sin(t * 0.4 + u.sway) * 0.4 - 0.08;
-                c.rotation.x = Math.sin(t * 0.32 + u.sway) * 0.1;
-            }
-            mx += (tmx - mx) * 0.05; my += (tmy - my) * 0.05;
-            camera.position.x = mx * 2.0; camera.position.y = -my * 1.4;
-            camera.lookAt(0, 0, 0);
-            renderer.render(scene, camera);
-            rafId = requestAnimationFrame(render);
-        }
-        function start() { if (running) return; running = true; clock.start(); render(); }
-        function stop() { running = false; if (rafId) cancelAnimationFrame(rafId); rafId = null; }
-
-        const vis = new IntersectionObserver((entries) => {
-            entries.forEach(e => e.isIntersecting ? start() : stop());
-        }, { threshold: 0.05 });
-        vis.observe(mount);
-
-        let rt;
-        window.addEventListener('resize', () => {
-            clearTimeout(rt);
-            rt = setTimeout(() => {
-                W = mount.clientWidth; H = mount.clientHeight;
-                if (!W || !H) return;
-                camera.aspect = W / H; camera.updateProjectionMatrix();
-                renderer.setSize(W, H);
-            }, 150);
-        }, { passive: true });
-    })();
-    </script>
-
-{% endif %}
-
-</body>
-</html>
+    new Chart(document.getElementById('paymentBarChart'), {
+        type: 'bar',
+        data: {
+            labels: ['On Time', 'Late', 'Not Paid'],
+            datasets: [{ data: [onTime, late, unpaid], backgroundColor: [signal, warning, critical], borderRadius: 8, maxBarThickness: 56 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: border }, ticks: { color: slate } }, x: { grid: { display: false }, ticks: { color: slate } } } }
+    });
+</script>
+{% endblock %}

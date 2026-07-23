@@ -1,204 +1,155 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register | Smart Pay</title>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.23/dist/full.min.css" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+    <link href="/static/css/tokens.css" rel="stylesheet">
+    <link href="/static/css/components.css" rel="stylesheet">
+    <style>
+        .auth-page { min-height: 100vh; display: flex; flex-direction: column; }
+        .auth-nav { padding: var(--space-4) var(--space-5); display: flex; align-items: center; justify-content: space-between; }
+        .auth-nav .brand { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 700; font-size: var(--text-lg); color: var(--ink); text-decoration: none; }
+        .auth-nav .brand svg { color: var(--signal); }
+        .auth-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: var(--space-6) var(--space-4); }
+        .auth-card { width: 100%; max-width: 420px; padding: var(--space-6); }
+        .auth-icon { width: 56px; height: 56px; border-radius: 50%; background: var(--success-tint); color: var(--success); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto var(--space-4); }
+        .auth-card h1 { text-align: center; font-size: var(--text-xl); margin-bottom: var(--space-1); }
+        .auth-card .subtitle { text-align: center; color: var(--slate); margin-bottom: var(--space-5); }
+        .input-icon-wrap { position: relative; }
+        .input-icon-wrap i.leading { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--slate); }
+        .input-icon-wrap .input { padding-left: 36px; }
+        .input-icon-wrap button.reveal { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--slate); cursor: pointer; padding: 4px; }
+        .strength-bars { display: flex; gap: 4px; margin-top: var(--space-2); }
+        .strength-bars .bar { height: 4px; flex: 1; border-radius: 3px; background: var(--border); }
+        .strength-text { font-size: var(--text-xs); color: var(--slate); margin-top: 4px; }
+        .req-list { background: var(--surface-2); border-radius: var(--radius-md); padding: var(--space-3); font-size: var(--text-sm); display: flex; flex-direction: column; gap: 6px; }
+        .req-list .req { display: flex; align-items: center; gap: 8px; color: var(--slate); }
+        .req-list .req i { color: var(--border-strong); }
+        .req-list .req.met { color: var(--ink); }
+        .req-list .req.met i { color: var(--success); }
+        .auth-below { text-align: center; color: var(--ink-soft); margin-top: var(--space-5); }
+    </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
-    <!-- Navigation -->
-    <nav class="bg-blue-600 text-white shadow">
-        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <a href="/" class="flex items-center gap-2 text-xl font-bold">
-                <i class="ri-file-text-line"></i> Smart Pay
+<body>
+    <div class="auth-page">
+        <nav class="auth-nav">
+            <a href="/" class="brand">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <rect x="2" y="2" width="20" height="20" rx="5" fill="currentColor"/>
+                    <path d="M7 9.5H17M7 13H13.5M7 16.5H10.5" stroke="var(--surface)" stroke-width="1.6" stroke-linecap="round"/>
+                </svg>
+                Smart Pay
             </a>
-            <div class="flex gap-2">
-                <a href="/dashboard" class="btn btn-sm btn-outline border-white text-white hover:bg-white hover:text-blue-600">
-                    <i class="ri-home-line"></i> Home
-                </a>
-                <a href="/login" class="btn btn-sm bg-white text-blue-600 hover:bg-blue-50">Login</a>
-            </div>
-        </div>
-    </nav>
+            <a href="/login" class="btn btn-secondary btn-sm">Login</a>
+        </nav>
 
-    <div class="min-h-[calc(100vh-60px)] flex items-center justify-center px-4 py-12">
-        <div class="bg-white shadow-xl rounded-2xl w-full max-w-md p-8">
-            <div class="text-center mb-8">
-                <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="ri-user-add-line text-3xl text-green-600"></i>
+        <div class="auth-wrap">
+            <div class="card auth-card">
+                <div class="auth-icon"><i class="ri-user-add-line" aria-hidden="true"></i></div>
+                <h1>Create account</h1>
+                <p class="subtitle">Get started with Smart Pay</p>
+
+                {% if error %}
+                <div class="alert alert-error" style="margin-bottom: var(--space-5);">
+                    <i class="ri-error-warning-line alert-icon" aria-hidden="true"></i>
+                    <span>{{ error }}</span>
                 </div>
-                <h1 class="text-3xl font-bold text-gray-900">Create Account</h1>
-                <p class="text-gray-500 mt-2">Get started with Smart Pay</p>
-            </div>
+                {% endif %}
 
-            {% if error %}
-            <div class="alert alert-error mb-6">
-                <i class="ri-error-warning-line"></i>
-                <span>{{ error }}</span>
-            </div>
-            {% endif %}
-
-            <form method="post" action="/register" class="space-y-4" id="registerForm">
-                <!-- Business Name -->
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text font-medium">Business / Company Name</span>
-                    </label>
-                    <div class="relative">
-                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                            <i class="ri-building-line"></i>
-                        </span>
-                        <input 
-                            type="text" 
-                            name="business_name" 
-                            required 
-                            minlength="2"
-                            maxlength="100"
-                            placeholder="Your company name" 
-                            value="{{ business_name|default('') }}"
-                            class="input input-bordered w-full pl-10"
-                        >
-                    </div>
-                </div>
-
-                <!-- Email -->
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text font-medium">Email Address</span>
-                    </label>
-                    <div class="relative">
-                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                            <i class="ri-mail-line"></i>
-                        </span>
-                        <input 
-                            type="email" 
-                            name="email" 
-                            required 
-                            placeholder="you@company.com" 
-                            value="{{ email|default('') }}"
-                            class="input input-bordered w-full pl-10"
-                        >
-                    </div>
-                </div>
-
-                <!-- Password -->
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text font-medium">Password</span>
-                    </label>
-                    <div class="relative">
-                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                            <i class="ri-lock-line"></i>
-                        </span>
-                        <input 
-                            type="password" 
-                            name="password" 
-                            required 
-                            minlength="8"
-                            id="passwordInput"
-                            placeholder="Create a strong password" 
-                            class="input input-bordered w-full pl-10 pr-10"
-                        >
-                        <button type="button" onclick="togglePassword()" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                            <i class="ri-eye-line" id="eyeIcon"></i>
-                        </button>
-                    </div>
-                    <!-- Password strength indicator -->
-                    <div class="mt-2">
-                        <div class="flex gap-1">
-                            <div class="h-1 flex-1 rounded bg-gray-200" id="str1"></div>
-                            <div class="h-1 flex-1 rounded bg-gray-200" id="str2"></div>
-                            <div class="h-1 flex-1 rounded bg-gray-200" id="str3"></div>
-                            <div class="h-1 flex-1 rounded bg-gray-200" id="str4"></div>
+                <form method="post" action="/register" id="registerForm" style="display: flex; flex-direction: column; gap: var(--space-4);">
+                    <div class="field">
+                        <label for="business_name">Business / company name</label>
+                        <div class="input-icon-wrap">
+                            <i class="ri-building-line leading" aria-hidden="true"></i>
+                            <input type="text" id="business_name" name="business_name" required minlength="2" maxlength="100" placeholder="Your company name" value="{{ business_name|default('') }}" class="input">
                         </div>
-                        <p class="text-xs text-gray-500 mt-1" id="strengthText">Min 8 chars, uppercase, lowercase, and number</p>
                     </div>
-                </div>
 
-                <!-- Password Requirements Checklist -->
-                <div class="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
-                    <div class="flex items-center gap-2" id="req-length">
-                        <i class="ri-close-circle-line text-gray-300 text-base" id="ico-length"></i>
-                        <span class="text-gray-500">At least 8 characters</span>
+                    <div class="field">
+                        <label for="email">Email address</label>
+                        <div class="input-icon-wrap">
+                            <i class="ri-mail-line leading" aria-hidden="true"></i>
+                            <input type="email" id="email" name="email" required placeholder="you@company.com" value="{{ email|default('') }}" class="input">
+                        </div>
                     </div>
-                    <div class="flex items-center gap-2" id="req-upper">
-                        <i class="ri-close-circle-line text-gray-300 text-base" id="ico-upper"></i>
-                        <span class="text-gray-500">One uppercase letter</span>
-                    </div>
-                    <div class="flex items-center gap-2" id="req-lower">
-                        <i class="ri-close-circle-line text-gray-300 text-base" id="ico-lower"></i>
-                        <span class="text-gray-500">One lowercase letter</span>
-                    </div>
-                    <div class="flex items-center gap-2" id="req-number">
-                        <i class="ri-close-circle-line text-gray-300 text-base" id="ico-number"></i>
-                        <span class="text-gray-500">One number</span>
-                    </div>
-                </div>
 
-                <button type="submit" class="btn btn-primary w-full gap-2 mt-2">
-                    <i class="ri-user-add-line"></i> Create Account
-                </button>
-            </form>
+                    <div class="field">
+                        <label for="passwordInput">Password</label>
+                        <div class="input-icon-wrap">
+                            <i class="ri-lock-line leading" aria-hidden="true"></i>
+                            <input type="password" name="password" required minlength="8" id="passwordInput" placeholder="Create a strong password" class="input" style="padding-right: 36px;">
+                            <button type="button" class="reveal" aria-label="Show password" onclick="togglePassword(this)">
+                                <i class="ri-eye-line" id="eyeIcon" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div class="strength-bars">
+                            <div class="bar" id="str1"></div>
+                            <div class="bar" id="str2"></div>
+                            <div class="bar" id="str3"></div>
+                            <div class="bar" id="str4"></div>
+                        </div>
+                        <p class="strength-text" id="strengthText">Min 8 chars, uppercase, lowercase, and number</p>
+                    </div>
 
-            <div class="divider my-6">OR</div>
+                    <div class="req-list">
+                        <div class="req" id="req-length"><i class="ri-close-circle-line" id="ico-length" aria-hidden="true"></i><span>At least 8 characters</span></div>
+                        <div class="req" id="req-upper"><i class="ri-close-circle-line" id="ico-upper" aria-hidden="true"></i><span>One uppercase letter</span></div>
+                        <div class="req" id="req-lower"><i class="ri-close-circle-line" id="ico-lower" aria-hidden="true"></i><span>One lowercase letter</span></div>
+                        <div class="req" id="req-number"><i class="ri-close-circle-line" id="ico-number" aria-hidden="true"></i><span>One number</span></div>
+                    </div>
 
-            <p class="text-center text-gray-600">
-                Already have an account? 
-                <a href="/login" class="text-blue-600 font-medium hover:underline">Sign in</a>
-            </p>
+                    <button type="submit" class="btn btn-primary btn-block">
+                        <i class="ri-user-add-line" aria-hidden="true"></i> Create account
+                    </button>
+                </form>
+
+                <hr class="divider">
+
+                <p class="auth-below">Already have an account? <a href="/login" style="font-weight: 600;">Sign in</a></p>
+            </div>
         </div>
     </div>
 
     <script>
-        function togglePassword() {
+        function togglePassword(btn) {
             var input = document.getElementById('passwordInput');
             var icon = document.getElementById('eyeIcon');
-            if (input.type === 'password') {
-                input.type = 'text';
-                icon.className = 'ri-eye-off-line';
-            } else {
-                input.type = 'password';
-                icon.className = 'ri-eye-line';
-            }
+            var showing = input.type === 'text';
+            input.type = showing ? 'password' : 'text';
+            icon.className = showing ? 'ri-eye-line' : 'ri-eye-off-line';
+            btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
         }
 
-        document.getElementById('passwordInput').addEventListener('input', function() {
-            var pw = this.value;
-            var score = 0;
+        var strengthColors = ['', '#C0392B', '#9A6B0B', '#146C5A', '#2E8B57'];
+        var strengthLabels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
 
+        document.getElementById('passwordInput').addEventListener('input', function () {
+            var pw = this.value;
             var hasLength = pw.length >= 8;
             var hasUpper = /[A-Z]/.test(pw);
             var hasLower = /[a-z]/.test(pw);
             var hasNumber = /[0-9]/.test(pw);
+            var score = [hasLength, hasUpper, hasLower, hasNumber].filter(Boolean).length;
 
-            if (hasLength) score++;
-            if (hasUpper) score++;
-            if (hasLower) score++;
-            if (hasNumber) score++;
-
-            // Update checklist icons
-            function setIcon(id, pass) {
-                var el = document.getElementById(id);
-                el.className = pass 
-                    ? 'ri-check-line text-green-500 text-base' 
-                    : 'ri-close-circle-line text-gray-300 text-base';
+            function setReq(id, pass) {
+                var req = document.getElementById('req-' + id);
+                var ico = document.getElementById('ico-' + id);
+                req.classList.toggle('met', pass);
+                ico.className = pass ? 'ri-check-line' : 'ri-close-circle-line';
             }
-            setIcon('ico-length', hasLength);
-            setIcon('ico-upper', hasUpper);
-            setIcon('ico-lower', hasLower);
-            setIcon('ico-number', hasNumber);
+            setReq('length', hasLength);
+            setReq('upper', hasUpper);
+            setReq('lower', hasLower);
+            setReq('number', hasNumber);
 
-            // Update strength bars
-            var colors = ['bg-gray-200', 'bg-red-400', 'bg-amber-400', 'bg-blue-400', 'bg-green-500'];
-            var labels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
             for (var i = 1; i <= 4; i++) {
                 var bar = document.getElementById('str' + i);
-                bar.className = 'h-1 flex-1 rounded ' + (i <= score ? colors[score] : 'bg-gray-200');
+                bar.style.background = i <= score ? strengthColors[score] : '';
             }
-            document.getElementById('strengthText').textContent = pw.length > 0 ? labels[score] : 'Min 8 chars, uppercase, lowercase, and number';
+            document.getElementById('strengthText').textContent = pw.length > 0 ? strengthLabels[score] : 'Min 8 chars, uppercase, lowercase, and number';
         });
     </script>
 </body>

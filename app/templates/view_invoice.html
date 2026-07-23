@@ -1,332 +1,226 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="light">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invoice #{{ inv.id }} | Smart Pay</title>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.23/dist/full.min.css" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
-</head>
-<body class="bg-gray-50 min-h-screen">
-    <nav class="bg-gradient-to-r from-blue-600 to-teal-600 text-white shadow-lg">
-        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <a href="/dashboard" class="flex items-center gap-2 hover:opacity-80">
-                <i class="ri-arrow-left-line"></i> Dashboard
-            </a>
-            <h1 class="font-bold">Invoice Details</h1>
-            <a href="/view-data" class="btn btn-sm btn-outline border-white text-white hover:bg-white hover:text-blue-600 gap-1">
-                <i class="ri-table-line"></i> All Invoices
-            </a>
-        </div>
-    </nav>
+{% extends "base.html" %}
 
-    <main class="container mx-auto px-6 py-8 max-w-4xl">
+{% block title %}Invoice #{{ inv.id }} · Smart Pay{% endblock %}
 
-        <!-- Messages -->
-        {% if "success" in request.query_params %}
-        <div class="alert alert-success mb-6 shadow-lg">
-            <i class="ri-check-line text-xl"></i>
-            <span>{{ request.query_params.get("success", "").replace("+", " ") }}</span>
-        </div>
-        {% endif %}
-        {% if "error" in request.query_params %}
-        <div class="alert alert-error mb-6 shadow-lg">
-            <i class="ri-error-warning-line text-xl"></i>
-            <span>{{ request.query_params.get("error", "").replace("+", " ") }}</span>
-        </div>
-        {% endif %}
+{% block head %}
+<style>
+    .risk-meter-track { width: 100%; background: var(--surface-2); border-radius: var(--radius-full); height: 10px; margin-top: var(--space-2); overflow: hidden; }
+    .risk-meter-track > span { display: block; height: 100%; }
+    .recommendation-box { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-4); border-radius: var(--radius-md); border: 1px solid; margin-top: var(--space-5); }
+    .detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-5); }
+    .detail-grid .span-2 { grid-column: 1 / -1; }
+    @media (max-width: 700px) { .detail-grid { grid-template-columns: 1fr; } }
+    .action-row { display: flex; flex-wrap: wrap; gap: var(--space-3); justify-content: center; margin-top: var(--space-6); }
+</style>
+{% endblock %}
 
-        <!-- Header + Status -->
-        <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900">
-                        Invoice #{{ inv.invoice_number if inv.invoice_number != 'N/A' else inv.id }}
-                    </h1>
-                    <p class="text-gray-500">
-                        Uploaded {{ inv.created_at.strftime('%B %d, %Y') }} &bull; {{ inv.filename }}
-                    </p>
-                </div>
-                <div class="flex gap-2">
-                    <a href="/edit-invoice/{{ inv.id }}" class="btn btn-primary btn-sm gap-1">
-                        <i class="ri-edit-line"></i> Edit
-                    </a>
-                    <a href="/ml/predict/{{ inv.id }}" class="btn btn-outline btn-sm gap-1">
-                        <i class="ri-brain-line"></i> Predict
-                    </a>
-                </div>
+{% block content %}
+<div class="app-body">
+    {% if "success" in request.query_params %}
+    <div class="alert alert-success" style="margin-bottom: var(--space-5);">
+        <i class="ri-check-line alert-icon" aria-hidden="true"></i>
+        <span>{{ request.query_params.get("success", "").replace("+", " ") }}</span>
+    </div>
+    {% endif %}
+    {% if "error" in request.query_params %}
+    <div class="alert alert-error" style="margin-bottom: var(--space-5);">
+        <i class="ri-error-warning-line alert-icon" aria-hidden="true"></i>
+        <span>{{ request.query_params.get("error", "").replace("+", " ") }}</span>
+    </div>
+    {% endif %}
+
+    <div class="card panel">
+        <div class="panel-head">
+            <div>
+                <h1 style="font-size: var(--text-xl);">Invoice #{{ inv.invoice_number if inv.invoice_number != 'N/A' else inv.id }}</h1>
+                <p class="text-slate" style="margin: 0;">Uploaded {{ inv.created_at.strftime('%B %d, %Y') }} &bull; {{ inv.filename }}</p>
             </div>
-
-            <!-- Status Bar -->
-            <div class="mt-4 pt-4 border-t flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                <div class="flex items-center gap-3">
-                    <span class="text-gray-500 text-sm">Status:</span>
-                    {% set s = inv.status or 'pending' %}
-                    {% if s == 'paid' %}
-                    <span class="badge badge-success gap-1 px-4 py-3 text-sm"><i class="ri-check-double-line"></i> Paid</span>
-                    {% elif s == 'overdue' %}
-                    <span class="badge badge-error gap-1 px-4 py-3 text-sm"><i class="ri-alarm-warning-line"></i> Overdue</span>
-                    {% elif s == 'disputed' %}
-                    <span class="badge badge-info gap-1 px-4 py-3 text-sm"><i class="ri-question-line"></i> Disputed</span>
-                    {% else %}
-                    <span class="badge badge-warning gap-1 px-4 py-3 text-sm"><i class="ri-time-line"></i> Pending</span>
-                    {% endif %}
-                </div>
-
-                <div class="flex gap-2 flex-wrap">
-                    {% if s != 'paid' %}
-                    <form method="post" action="/update-status/{{ inv.id }}" class="inline">
-                        <input type="hidden" name="status" value="paid">
-                        <button class="btn btn-sm btn-success btn-outline gap-1"><i class="ri-check-line"></i> Mark Paid</button>
-                    </form>
-                    {% endif %}
-                    {% if s != 'disputed' %}
-                    <form method="post" action="/update-status/{{ inv.id }}" class="inline">
-                        <input type="hidden" name="status" value="disputed">
-                        <button class="btn btn-sm btn-info btn-outline gap-1"><i class="ri-question-line"></i> Dispute</button>
-                    </form>
-                    {% endif %}
-                    {% if s in ('paid', 'disputed') %}
-                    <form method="post" action="/update-status/{{ inv.id }}" class="inline">
-                        <input type="hidden" name="status" value="pending">
-                        <button class="btn btn-sm btn-warning btn-outline gap-1"><i class="ri-arrow-go-back-line"></i> Reopen</button>
-                    </form>
-                    {% endif %}
-                </div>
+            <div style="display:flex; gap: var(--space-2);">
+                <a href="/edit-invoice/{{ inv.id }}" class="btn btn-primary btn-sm"><i class="ri-edit-line" aria-hidden="true"></i> Edit</a>
+                <a href="/ml/predict/{{ inv.id }}" class="btn btn-secondary btn-sm"><i class="ri-brain-line" aria-hidden="true"></i> Predict</a>
             </div>
         </div>
 
-        <!-- AI Prediction -->
-        <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
-            <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <i class="ri-brain-line text-purple-600"></i> AI Payment Prediction
-            </h2>
+        <hr class="divider" style="margin: var(--space-4) 0;">
 
-            {% if inv.features and inv.features.predicted_label is not none %}
-            <div class="grid md:grid-cols-2 gap-6">
-                <div>
-                    <p class="text-gray-600 mb-2">Predicted Late Payment:</p>
-                    {% if inv.features.predicted_label == 1 %}
-                    <div class="flex items-center gap-2 text-red-600">
-                        <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                            <i class="ri-alert-line text-2xl"></i>
-                        </div>
-                        <div>
-                            <div class="text-xl font-bold">HIGH RISK</div>
-                            <div class="text-sm">Likely to pay late</div>
-                        </div>
-                    </div>
-                    {% else %}
-                    <div class="flex items-center gap-2 text-green-600">
-                        <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                            <i class="ri-check-line text-2xl"></i>
-                        </div>
-                        <div>
-                            <div class="text-xl font-bold">LOW RISK</div>
-                            <div class="text-sm">Likely to pay on time</div>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-                <div>
-                    <p class="text-gray-600 mb-2">Risk Score:</p>
-                    <div class="text-4xl font-bold {% if inv.features.predicted_probability > 0.7 %}text-red-600{% elif inv.features.predicted_probability > 0.4 %}text-amber-600{% else %}text-green-600{% endif %}">
-                        {{ "%.1f"|format(inv.features.predicted_probability * 100) }}%
-                    </div>
-                    <div class="w-full bg-gray-200 rounded-full h-3 mt-2">
-                        <div class="h-3 rounded-full {% if inv.features.predicted_probability > 0.7 %}bg-red-500{% elif inv.features.predicted_probability > 0.4 %}bg-amber-500{% else %}bg-green-500{% endif %}" style="width: {{ inv.features.predicted_probability * 100 }}%"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mt-4 text-sm text-gray-500 flex items-center gap-2">
-                {% if inv.features.prediction_mode == 'ml' %}
-                <span class="badge badge-sm badge-success">ML</span>
-                <span>Trained on {{ inv.features.model_invoices_seen }} paid invoices{% if inv.features.model_held_out_accuracy is not none %}, {{ (inv.features.model_held_out_accuracy * 100)|round(1) }}% held-out accuracy{% endif %}.</span>
-                {% elif inv.features.prediction_mode == 'heuristic' %}
-                <span class="badge badge-sm badge-warning">Heuristic</span>
-                <span>Not enough paid invoice history for ML yet ({{ inv.features.model_invoices_seen }} on file) — this is a payment-terms rule, not a learned prediction.</span>
-                {% endif %}
-                <a href="/ml/explain/{{ inv.id }}" class="text-blue-600 hover:underline">Why?</a>
-            </div>
-
-            {% if inv.features.predicted_label == 1 %}
-            <div class="mt-6 p-4 bg-red-50 rounded-xl border border-red-200">
-                <div class="flex items-start gap-3">
-                    <i class="ri-lightbulb-line text-red-600 text-xl"></i>
-                    <div>
-                        <strong class="text-red-800">Recommendation:</strong>
-                        <p class="text-red-700 mt-1">Send an early payment reminder. Consider requiring partial payment upfront for future orders.</p>
-                    </div>
-                </div>
-            </div>
-            {% else %}
-            <div class="mt-6 p-4 bg-green-50 rounded-xl border border-green-200">
-                <div class="flex items-start gap-3">
-                    <i class="ri-lightbulb-line text-green-600 text-xl"></i>
-                    <div>
-                        <strong class="text-green-800">Recommendation:</strong>
-                        <p class="text-green-700 mt-1">Standard payment terms are appropriate. A friendly reminder 3 days before due date should suffice.</p>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-
-            <div class="mt-4 flex gap-2 flex-wrap">
-                <a href="/ml/explain/{{ inv.id }}" class="btn btn-sm btn-outline gap-1">
-                    <i class="ri-question-line"></i> Why this prediction?
-                </a>
-                <a href="/ml/analytics" class="btn btn-sm btn-outline btn-secondary gap-1">
-                    <i class="ri-bar-chart-box-line"></i> View Analytics
-                </a>
-            </div>
-            {% else %}
-            <div class="text-center py-8">
-                <i class="ri-brain-line text-5xl text-gray-300 mb-4"></i>
-                <p class="text-gray-500 mb-4">No prediction generated yet</p>
-                <a href="/ml/predict/{{ inv.id }}" class="btn btn-primary gap-1">
-                    <i class="ri-play-line"></i> Run Prediction
-                </a>
-            </div>
-            {% endif %}
-        </div>
-
-        <!-- Invoice Details Grid -->
-        <div class="grid md:grid-cols-2 gap-6">
-            <!-- Customer -->
-            <div class="bg-white rounded-2xl shadow-sm p-6">
-                <h3 class="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <i class="ri-user-line text-blue-600"></i> Customer Information
-                </h3>
-                <div class="space-y-3">
-                    <div class="flex justify-between py-2 border-b">
-                        <span class="text-gray-500">Name</span>
-                        <span class="font-medium">{{ inv.customer_name if inv.customer_name != 'N/A' else '\u2014' }}</span>
-                    </div>
-                    <div class="flex justify-between py-2 border-b">
-                        <span class="text-gray-500">Email</span>
-                        <span class="font-medium">{{ inv.customer_email if inv.customer_email != 'N/A' else '\u2014' }}</span>
-                    </div>
-                    <div class="flex justify-between py-2">
-                        <span class="text-gray-500">Address</span>
-                        <span class="font-medium text-right max-w-[200px]">{{ inv.customer_address if inv.customer_address != 'N/A' else '\u2014' }}</span>
-                    </div>
-                </div>
-
-                {% if customer_history %}
-                <div class="mt-4 pt-4 border-t">
-                    <h4 class="text-sm font-semibold text-gray-700 mb-2">Payment History</h4>
-                    <div class="text-sm space-y-1">
-                        <div class="flex justify-between">
-                            <span class="text-gray-500">Total Invoices:</span>
-                            <span class="font-medium">{{ customer_history.total_invoices }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-500">Paid On Time:</span>
-                            <span class="font-medium text-green-600">{{ customer_history.paid_on_time }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-500">Paid Late:</span>
-                            <span class="font-medium text-amber-600">{{ customer_history.paid_late }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-500">Avg Delay:</span>
-                            <span class="font-medium">{{ customer_history.avg_payment_delay|round(1) }} days</span>
-                        </div>
-                    </div>
-                </div>
+        <div style="display:flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-3);">
+            <div style="display:flex; align-items:center; gap: var(--space-3);">
+                <span class="text-slate" style="font-size: var(--text-sm);">Status:</span>
+                {% set s = inv.status or 'pending' %}
+                {% if s == 'paid' %}
+                <span class="pill pill-success" style="font-size: var(--text-sm); padding: 6px 14px;"><i class="ri-check-double-line" aria-hidden="true"></i> Paid</span>
+                {% elif s == 'overdue' %}
+                <span class="pill pill-critical" style="font-size: var(--text-sm); padding: 6px 14px;"><i class="ri-alarm-warning-line" aria-hidden="true"></i> Overdue</span>
+                {% elif s == 'disputed' %}
+                <span class="pill pill-neutral" style="font-size: var(--text-sm); padding: 6px 14px;"><i class="ri-question-line" aria-hidden="true"></i> Disputed</span>
+                {% else %}
+                <span class="pill pill-warning" style="font-size: var(--text-sm); padding: 6px 14px;"><i class="ri-time-line" aria-hidden="true"></i> Pending</span>
                 {% endif %}
             </div>
 
-            <!-- Invoice Info -->
-            <div class="bg-white rounded-2xl shadow-sm p-6">
-                <h3 class="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <i class="ri-file-text-line text-green-600"></i> Invoice Details
-                </h3>
-                <div class="space-y-3">
-                    <div class="flex justify-between py-2 border-b">
-                        <span class="text-gray-500">Invoice Number</span>
-                        <span class="font-medium">{{ inv.invoice_number if inv.invoice_number != 'N/A' else '\u2014' }}</span>
-                    </div>
-                    <div class="flex justify-between py-2 border-b">
-                        <span class="text-gray-500">Amount</span>
-                        <span class="font-bold text-lg">{{ inv.amount if inv.amount != 'N/A' else '\u2014' }} {{ inv.currency if inv.currency != 'N/A' else '' }}</span>
-                    </div>
-                    <div class="flex justify-between py-2 border-b">
-                        <span class="text-gray-500">Invoice Date</span>
-                        <span class="font-medium">{{ inv.date if inv.date != 'N/A' else '\u2014' }}</span>
-                    </div>
-                    <div class="flex justify-between py-2">
-                        <span class="text-gray-500">Due Date</span>
-                        <span class="font-medium {% if inv.status == 'overdue' %}text-red-600{% elif inv.due_date and inv.due_date != 'N/A' %}text-blue-600{% endif %}">
-                            {{ inv.due_date if inv.due_date != 'N/A' else '\u2014' }}
-                            {% if inv.status == 'overdue' %}<i class="ri-alarm-warning-line"></i>{% endif %}
-                        </span>
-                    </div>
-                </div>
+            <div style="display:flex; gap: var(--space-2); flex-wrap: wrap;">
+                {% if s != 'paid' %}
+                <form method="post" action="/update-status/{{ inv.id }}" style="display:inline;">
+                    <input type="hidden" name="status" value="paid">
+                    <button class="btn btn-secondary btn-sm"><i class="ri-check-line" aria-hidden="true"></i> Mark paid</button>
+                </form>
+                {% endif %}
+                {% if s != 'disputed' %}
+                <form method="post" action="/update-status/{{ inv.id }}" style="display:inline;">
+                    <input type="hidden" name="status" value="disputed">
+                    <button class="btn btn-secondary btn-sm"><i class="ri-question-line" aria-hidden="true"></i> Dispute</button>
+                </form>
+                {% endif %}
+                {% if s in ('paid', 'disputed') %}
+                <form method="post" action="/update-status/{{ inv.id }}" style="display:inline;">
+                    <input type="hidden" name="status" value="pending">
+                    <button class="btn btn-secondary btn-sm"><i class="ri-arrow-go-back-line" aria-hidden="true"></i> Reopen</button>
+                </form>
+                {% endif %}
             </div>
+        </div>
+    </div>
 
-            <!-- Company -->
-            <div class="bg-white rounded-2xl shadow-sm p-6 md:col-span-2">
-                <h3 class="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <i class="ri-building-line text-purple-600"></i> Company Information
-                </h3>
-                <div class="grid md:grid-cols-2 gap-6">
-                    <div class="space-y-3">
-                        <div class="flex justify-between py-2 border-b">
-                            <span class="text-gray-500">Company Name</span>
-                            <span class="font-medium">{{ inv.company_name if inv.company_name != 'N/A' else '\u2014' }}</span>
-                        </div>
-                        <div class="flex justify-between py-2">
-                            <span class="text-gray-500">VAT/Tax ID</span>
-                            <span class="font-medium">{{ inv.vat_id if inv.vat_id != 'N/A' else '\u2014' }}</span>
-                        </div>
-                    </div>
-                    <div class="space-y-3">
-                        <div class="flex justify-between py-2 border-b">
-                            <span class="text-gray-500">Database ID</span>
-                            <span class="font-mono">{{ inv.id }}</span>
-                        </div>
-                        <div class="flex justify-between py-2">
-                            <span class="text-gray-500">Source File</span>
-                            <span class="font-medium truncate max-w-[150px]" title="{{ inv.filename }}">{{ inv.filename }}</span>
-                        </div>
-                    </div>
+    <div class="card panel">
+        <h2 style="font-size: var(--text-lg);"><i class="ri-brain-line" style="color: var(--signal);" aria-hidden="true"></i> AI payment prediction</h2>
+
+        {% if inv.features and inv.features.predicted_label is not none %}
+        <div class="detail-grid">
+            <div>
+                <p class="text-slate" style="margin-bottom: var(--space-2);">Predicted late payment:</p>
+                {% if inv.features.predicted_label == 1 %}
+                <div style="display:flex; align-items:center; gap: var(--space-3);">
+                    <div style="width:48px; height:48px; border-radius:50%; background: var(--critical-tint); display:flex; align-items:center; justify-content:center;"><i class="ri-alert-line text-critical" style="font-size:1.5rem;" aria-hidden="true"></i></div>
+                    <div><div style="font-size: var(--text-xl); font-weight:700; color: var(--critical);">High risk</div><div class="text-slate" style="font-size: var(--text-sm);">Likely to pay late</div></div>
+                </div>
+                {% else %}
+                <div style="display:flex; align-items:center; gap: var(--space-3);">
+                    <div style="width:48px; height:48px; border-radius:50%; background: var(--success-tint); display:flex; align-items:center; justify-content:center;"><i class="ri-check-line text-success" style="font-size:1.5rem;" aria-hidden="true"></i></div>
+                    <div><div style="font-size: var(--text-xl); font-weight:700; color: var(--success);">Low risk</div><div class="text-slate" style="font-size: var(--text-sm);">Likely to pay on time</div></div>
+                </div>
+                {% endif %}
+            </div>
+            <div>
+                <p class="text-slate" style="margin-bottom: var(--space-2);">Risk score:</p>
+                <div style="font-family: var(--font-display); font-size: var(--text-2xl); font-weight:700; font-variant-numeric: tabular-nums;
+                    color: {% if inv.features.predicted_probability > 0.7 %}var(--critical){% elif inv.features.predicted_probability > 0.4 %}var(--warning){% else %}var(--success){% endif %};">
+                    {{ "%.1f"|format(inv.features.predicted_probability * 100) }}%
+                </div>
+                <div class="risk-meter-track">
+                    <span style="width: {{ inv.features.predicted_probability * 100 }}%; background: {% if inv.features.predicted_probability > 0.7 %}var(--critical){% elif inv.features.predicted_probability > 0.4 %}var(--warning){% else %}var(--success){% endif %};"></span>
                 </div>
             </div>
         </div>
 
-        <!-- Action Buttons -->
-        <div class="mt-8 flex flex-wrap gap-3 justify-center">
-            <form action="/send-reminder/{{ inv.id }}" method="post" class="inline">
-                <input type="hidden" name="customer_email" value="{{ inv.customer_email if inv.customer_email != 'N/A' else '' }}">
-                <button type="submit" class="btn {% if inv.features and inv.features.predicted_label == 1 %}btn-error{% else %}btn-success{% endif %} gap-1"
-                        {% if not inv.customer_email or inv.customer_email == 'N/A' %}disabled{% endif %}>
-                    <i class="ri-mail-send-line"></i>
-                    {% if inv.features and inv.features.predicted_label == 1 %}Send Urgent Reminder{% else %}Send Friendly Reminder{% endif %}
-                </button>
-            </form>
+        <div class="text-slate" style="font-size: var(--text-sm); margin-top: var(--space-4); display:flex; align-items:center; gap: var(--space-2); flex-wrap: wrap;">
+            {% if inv.features.prediction_mode == 'ml' %}
+            <span class="pill pill-success">ML</span>
+            <span>Trained on {{ inv.features.model_invoices_seen }} paid invoices{% if inv.features.model_held_out_accuracy is not none %}, {{ (inv.features.model_held_out_accuracy * 100)|round(1) }}% held-out accuracy{% endif %}.</span>
+            {% elif inv.features.prediction_mode == 'heuristic' %}
+            <span class="pill pill-warning">Heuristic</span>
+            <span>Not enough paid invoice history for ML yet ({{ inv.features.model_invoices_seen }} on file) — this is a payment-terms rule, not a learned prediction.</span>
+            {% endif %}
+            <a href="/ml/explain/{{ inv.id }}">Why?</a>
+        </div>
 
-            {% if not inv.customer_email or inv.customer_email == 'N/A' %}
-            <div class="w-full text-center">
-                <p class="text-sm text-red-500">
-                    <i class="ri-error-warning-line"></i> No customer email found.
-                    <a href="/edit-invoice/{{ inv.id }}" class="underline">Add email in edit</a>
-                </p>
+        {% if inv.features.predicted_label == 1 %}
+        <div class="recommendation-box" style="background: var(--critical-tint); border-color: #f0c6c0;">
+            <i class="ri-lightbulb-line text-critical" style="font-size:1.25rem;" aria-hidden="true"></i>
+            <div><strong style="color: #8a2a1f;">Recommendation:</strong><p style="color:#8a2a1f; margin: 4px 0 0;">Send an early payment reminder. Consider requiring partial payment upfront for future orders.</p></div>
+        </div>
+        {% else %}
+        <div class="recommendation-box" style="background: var(--success-tint); border-color: #c9e6d5;">
+            <i class="ri-lightbulb-line text-success" style="font-size:1.25rem;" aria-hidden="true"></i>
+            <div><strong style="color: #1f6b41;">Recommendation:</strong><p style="color:#1f6b41; margin: 4px 0 0;">Standard payment terms are appropriate. A friendly reminder 3 days before due date should suffice.</p></div>
+        </div>
+        {% endif %}
+
+        <div style="margin-top: var(--space-4); display:flex; gap: var(--space-2); flex-wrap: wrap;">
+            <a href="/ml/explain/{{ inv.id }}" class="btn btn-secondary btn-sm"><i class="ri-question-line" aria-hidden="true"></i> Why this prediction?</a>
+            <a href="/ml/analytics" class="btn btn-secondary btn-sm"><i class="ri-bar-chart-box-line" aria-hidden="true"></i> View analytics</a>
+        </div>
+        {% else %}
+        <div class="state-box">
+            <div class="state-icon"><i class="ri-brain-line" aria-hidden="true"></i></div>
+            No prediction generated yet
+            <div style="margin-top: var(--space-4);">
+                <a href="/ml/predict/{{ inv.id }}" class="btn btn-primary"><i class="ri-play-line" aria-hidden="true"></i> Run prediction</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="detail-grid">
+        <div class="card panel">
+            <h3 style="font-size: var(--text-base);"><i class="ri-user-line" style="color: var(--signal);" aria-hidden="true"></i> Customer information</h3>
+            <div class="detail-list">
+                <div class="detail-row"><span class="detail-label">Name</span><span class="detail-value">{{ inv.customer_name if inv.customer_name != 'N/A' else '—' }}</span></div>
+                <div class="detail-row"><span class="detail-label">Email</span><span class="detail-value">{{ inv.customer_email if inv.customer_email != 'N/A' else '—' }}</span></div>
+                <div class="detail-row"><span class="detail-label">Address</span><span class="detail-value" style="max-width:200px;">{{ inv.customer_address if inv.customer_address != 'N/A' else '—' }}</span></div>
+            </div>
+
+            {% if customer_history %}
+            <hr class="divider" style="margin: var(--space-4) 0;">
+            <h4 style="font-size: var(--text-sm); margin-bottom: var(--space-2);">Payment history</h4>
+            <div class="detail-list">
+                <div class="detail-row" style="padding: 4px 0;"><span class="detail-label">Total invoices</span><span class="detail-value">{{ customer_history.total_invoices }}</span></div>
+                <div class="detail-row" style="padding: 4px 0;"><span class="detail-label">Paid on time</span><span class="detail-value text-success">{{ customer_history.paid_on_time }}</span></div>
+                <div class="detail-row" style="padding: 4px 0;"><span class="detail-label">Paid late</span><span class="detail-value" style="color: var(--warning);">{{ customer_history.paid_late }}</span></div>
+                <div class="detail-row" style="padding: 4px 0;"><span class="detail-label">Avg delay</span><span class="detail-value">{{ customer_history.avg_payment_delay|round(1) }} days</span></div>
             </div>
             {% endif %}
-
-            <a href="/edit-invoice/{{ inv.id }}" class="btn btn-primary gap-1"><i class="ri-edit-line"></i> Edit</a>
-            <a href="/ml/predict/{{ inv.id }}" class="btn btn-outline gap-1"><i class="ri-brain-line"></i> Predict</a>
-            <a href="/ml/analytics" class="btn btn-outline btn-secondary gap-1"><i class="ri-bar-chart-box-line"></i> Analytics</a>
-            <a href="/view-data" class="btn btn-outline gap-1"><i class="ri-list-check"></i> All Invoices</a>
-
-            <form action="/delete-invoice" method="post" onsubmit="return confirm('Delete this invoice? This cannot be undone.')" class="inline">
-                <input type="hidden" name="invoice_id" value="{{ inv.id }}">
-                <button type="submit" class="btn btn-outline btn-error gap-1"><i class="ri-delete-bin-line"></i> Delete</button>
-            </form>
         </div>
-    </main>
-</body>
-</html>
+
+        <div class="card panel">
+            <h3 style="font-size: var(--text-base);"><i class="ri-file-text-line" style="color: var(--success);" aria-hidden="true"></i> Invoice details</h3>
+            <div class="detail-list">
+                <div class="detail-row"><span class="detail-label">Invoice number</span><span class="detail-value">{{ inv.invoice_number if inv.invoice_number != 'N/A' else '—' }}</span></div>
+                <div class="detail-row"><span class="detail-label">Amount</span><span class="detail-value" style="font-size: var(--text-lg);">{{ inv.amount if inv.amount != 'N/A' else '—' }} {{ inv.currency if inv.currency != 'N/A' else '' }}</span></div>
+                <div class="detail-row"><span class="detail-label">Invoice date</span><span class="detail-value">{{ inv.date if inv.date != 'N/A' else '—' }}</span></div>
+                <div class="detail-row"><span class="detail-label">Due date</span><span class="detail-value {% if inv.status == 'overdue' %}text-critical{% endif %}">{{ inv.due_date if inv.due_date != 'N/A' else '—' }}{% if inv.status == 'overdue' %} <i class="ri-alarm-warning-line" aria-hidden="true"></i>{% endif %}</span></div>
+            </div>
+        </div>
+
+        <div class="card panel span-2">
+            <h3 style="font-size: var(--text-base);"><i class="ri-building-line" style="color: var(--signal);" aria-hidden="true"></i> Company information</h3>
+            <div class="detail-grid">
+                <div class="detail-list">
+                    <div class="detail-row"><span class="detail-label">Company name</span><span class="detail-value">{{ inv.company_name if inv.company_name != 'N/A' else '—' }}</span></div>
+                    <div class="detail-row"><span class="detail-label">VAT/Tax ID</span><span class="detail-value">{{ inv.vat_id if inv.vat_id != 'N/A' else '—' }}</span></div>
+                </div>
+                <div class="detail-list">
+                    <div class="detail-row"><span class="detail-label">Database ID</span><span class="detail-value mono">{{ inv.id }}</span></div>
+                    <div class="detail-row"><span class="detail-label">Source file</span><span class="detail-value" style="max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{{ inv.filename }}">{{ inv.filename }}</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="action-row">
+        <form action="/send-reminder/{{ inv.id }}" method="post" style="display:inline;">
+            <input type="hidden" name="customer_email" value="{{ inv.customer_email if inv.customer_email != 'N/A' else '' }}">
+            <button type="submit" class="btn {% if inv.features and inv.features.predicted_label == 1 %}btn-danger{% else %}btn-primary{% endif %}"
+                    {% if not inv.customer_email or inv.customer_email == 'N/A' %}disabled{% endif %}>
+                <i class="ri-mail-send-line" aria-hidden="true"></i>
+                {% if inv.features and inv.features.predicted_label == 1 %}Send urgent reminder{% else %}Send friendly reminder{% endif %}
+            </button>
+        </form>
+
+        {% if not inv.customer_email or inv.customer_email == 'N/A' %}
+        <div style="width:100%; text-align:center;">
+            <p class="text-critical" style="font-size: var(--text-sm);"><i class="ri-error-warning-line" aria-hidden="true"></i> No customer email found. <a href="/edit-invoice/{{ inv.id }}">Add email in edit</a></p>
+        </div>
+        {% endif %}
+
+        <a href="/edit-invoice/{{ inv.id }}" class="btn btn-secondary"><i class="ri-edit-line" aria-hidden="true"></i> Edit</a>
+        <a href="/ml/predict/{{ inv.id }}" class="btn btn-secondary"><i class="ri-brain-line" aria-hidden="true"></i> Predict</a>
+        <a href="/ml/analytics" class="btn btn-secondary"><i class="ri-bar-chart-box-line" aria-hidden="true"></i> Analytics</a>
+        <a href="/view-data" class="btn btn-secondary"><i class="ri-list-check" aria-hidden="true"></i> All invoices</a>
+
+        <form action="/delete-invoice" method="post" onsubmit="return confirm('Delete this invoice? This cannot be undone.')" style="display:inline;">
+            <input type="hidden" name="invoice_id" value="{{ inv.id }}">
+            <button type="submit" class="btn btn-danger"><i class="ri-delete-bin-line" aria-hidden="true"></i> Delete</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

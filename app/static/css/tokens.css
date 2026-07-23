@@ -1,0 +1,108 @@
+/* ============================================================
+   Smart Pay design tokens — "Emerald Ledger"
+   Near-white surfaces, a deep emerald accent, charcoal-green-gray
+   ink. Deliberately light-only: no dark theme tokens, no toggle.
+   ============================================================ */
+:root {
+  --paper: #F9FAFA;
+  --surface: #FFFFFF;
+  --surface-2: #F0F3F2;
+  --ink: #212B2A;
+  --ink-soft: #45514F;
+  --slate: #667370;
+  --border: #E2E7E5;
+  --border-strong: #CBD3D0;
+
+  --signal: #146C5A;
+  --signal-strong: #0F5245;
+  --signal-tint: #E4F0EC;
+
+  --success: #2E8B57;
+  --success-tint: #E9F5EE;
+  --warning: #9A6B0B;
+  --warning-tint: #FBF1DC;
+  --critical: #C0392B;
+  --critical-tint: #FBEAE8;
+
+  --font-display: Archivo, 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-body: 'Source Sans 3', 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --text-3xl: 2.75rem;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(33, 43, 42, 0.06);
+  --shadow-md: 0 4px 16px -4px rgba(33, 43, 42, 0.12);
+  --shadow-focus: 0 0 0 3px var(--signal-tint), 0 0 0 1px var(--signal);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+  margin: 0 0 var(--space-2);
+  color: var(--ink);
+}
+
+p { margin: 0 0 var(--space-3); }
+a { color: var(--signal); }
+a:hover { color: var(--signal-strong); }
+code, pre { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.85em; }
+
+img { max-width: 100%; display: block; }
+
+::selection { background: var(--signal-tint); color: var(--signal-strong); }
+
+/* Single, consistent focus treatment across every interactive element */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

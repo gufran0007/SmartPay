@@ -1,91 +1,95 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login | Smart Pay</title>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.23/dist/full.min.css" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+    <link href="/static/css/tokens.css" rel="stylesheet">
+    <link href="/static/css/components.css" rel="stylesheet">
+    <style>
+        .auth-page { min-height: 100vh; display: flex; flex-direction: column; }
+        .auth-nav { padding: var(--space-4) var(--space-5); display: flex; align-items: center; justify-content: space-between; }
+        .auth-nav .brand { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 700; font-size: var(--text-lg); color: var(--ink); text-decoration: none; }
+        .auth-nav .brand svg { color: var(--signal); }
+        .auth-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: var(--space-6) var(--space-4); }
+        .auth-card { width: 100%; max-width: 400px; padding: var(--space-6); }
+        .auth-icon { width: 56px; height: 56px; border-radius: 50%; background: var(--signal-tint); color: var(--signal); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto var(--space-4); }
+        .auth-card h1 { text-align: center; font-size: var(--text-xl); margin-bottom: var(--space-1); }
+        .auth-card .subtitle { text-align: center; color: var(--slate); margin-bottom: var(--space-5); }
+        .input-icon-wrap { position: relative; }
+        .input-icon-wrap i.leading { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--slate); }
+        .input-icon-wrap .input { padding-left: 36px; }
+        .input-icon-wrap button.reveal { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--slate); cursor: pointer; padding: 4px; }
+        .auth-footnote { text-align: center; font-size: var(--text-xs); color: var(--slate); margin-top: var(--space-4); }
+        .auth-below { text-align: center; color: var(--ink-soft); margin-top: var(--space-5); }
+    </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
-    <nav class="bg-blue-600 text-white shadow">
-        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <a href="/" class="flex items-center gap-2 text-xl font-bold">
-                <i class="ri-file-text-line"></i> Smart Pay
+<body>
+    <div class="auth-page">
+        <nav class="auth-nav">
+            <a href="/" class="brand">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <rect x="2" y="2" width="20" height="20" rx="5" fill="currentColor"/>
+                    <path d="M7 9.5H17M7 13H13.5M7 16.5H10.5" stroke="var(--surface)" stroke-width="1.6" stroke-linecap="round"/>
+                </svg>
+                Smart Pay
             </a>
-            <div class="flex gap-2">
-                <a href="/dashboard" class="btn btn-sm btn-outline border-white text-white hover:bg-white hover:text-blue-600">
-                    <i class="ri-home-line"></i> Home
-                </a>
-                <a href="/register" class="btn btn-sm bg-white text-blue-600 hover:bg-blue-50">Register</a>
-            </div>
-        </div>
-    </nav>
+            <a href="/register" class="btn btn-secondary btn-sm">Register</a>
+        </nav>
 
-    <div class="min-h-[calc(100vh-60px)] flex items-center justify-center px-4 py-12">
-        <div class="bg-white shadow-xl rounded-2xl w-full max-w-md p-8">
-            <div class="text-center mb-8">
-                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="ri-login-box-line text-3xl text-blue-600"></i>
+        <div class="auth-wrap">
+            <div class="card auth-card">
+                <div class="auth-icon"><i class="ri-login-box-line" aria-hidden="true"></i></div>
+                <h1>Welcome back</h1>
+                <p class="subtitle">Sign in to manage your invoices</p>
+
+                {% if message %}
+                <div class="alert alert-success" style="margin-bottom: var(--space-5);">
+                    <i class="ri-check-line alert-icon" aria-hidden="true"></i>
+                    <span>{{ message }}</span>
                 </div>
-                <h1 class="text-3xl font-bold text-gray-900">Welcome Back</h1>
-                <p class="text-gray-500 mt-2">Sign in to manage your invoices</p>
-            </div>
+                {% endif %}
 
-            {% if message %}
-            <div class="alert alert-success mb-6">
-                <i class="ri-check-line"></i>
-                <span>{{ message }}</span>
-            </div>
-            {% endif %}
+                {% if error %}
+                <div class="alert alert-error" style="margin-bottom: var(--space-5);">
+                    <i class="ri-error-warning-line alert-icon" aria-hidden="true"></i>
+                    <span>{{ error }}</span>
+                </div>
+                {% endif %}
 
-            {% if error %}
-            <div class="alert alert-error mb-6">
-                <i class="ri-error-warning-line"></i>
-                <span>{{ error }}</span>
-            </div>
-            {% endif %}
-
-            <form method="post" action="/login" class="space-y-5">
-                <div class="form-control">
-                    <label class="label"><span class="label-text font-medium">Email Address</span></label>
-                    <div class="relative">
-                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><i class="ri-mail-line"></i></span>
-                        <input type="email" name="email" required placeholder="you@company.com" class="input input-bordered w-full pl-10">
+                <form method="post" action="/login" style="display: flex; flex-direction: column; gap: var(--space-4);">
+                    <div class="field">
+                        <label for="email">Email address</label>
+                        <div class="input-icon-wrap">
+                            <i class="ri-mail-line leading" aria-hidden="true"></i>
+                            <input type="email" id="email" name="email" required placeholder="you@company.com" class="input">
+                        </div>
                     </div>
-                </div>
 
-                <div class="form-control">
-                    <label class="label"><span class="label-text font-medium">Password</span></label>
-                    <div class="relative">
-                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><i class="ri-lock-line"></i></span>
-                        <input type="password" name="password" required placeholder="Enter your password" class="input input-bordered w-full pl-10 pr-10" id="loginPw">
-                        <button type="button" onclick="var i=document.getElementById('loginPw');i.type=i.type==='password'?'text':'password'" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                            <i class="ri-eye-line"></i>
-                        </button>
+                    <div class="field">
+                        <label for="loginPw">Password</label>
+                        <div class="input-icon-wrap">
+                            <i class="ri-lock-line leading" aria-hidden="true"></i>
+                            <input type="password" name="password" required placeholder="Enter your password" class="input" id="loginPw" style="padding-right: 36px;">
+                            <button type="button" class="reveal" aria-label="Show password" onclick="var i=document.getElementById('loginPw');var showing=i.type==='text';i.type=showing?'password':'text';this.setAttribute('aria-label', showing?'Show password':'Hide password');this.querySelector('i').className=showing?'ri-eye-line':'ri-eye-off-line';">
+                                <i class="ri-eye-line" aria-hidden="true"></i>
+                            </button>
+                        </div>
                     </div>
-                </div>
 
-                <button type="submit" class="btn btn-primary w-full gap-2">
-                    <i class="ri-login-box-line"></i> Sign In
-                </button>
-            </form>
+                    <button type="submit" class="btn btn-primary btn-block">
+                        <i class="ri-login-box-line" aria-hidden="true"></i> Sign in
+                    </button>
+                </form>
 
-            <!-- Security notice -->
-            <div class="mt-4 text-center">
-                <p class="text-xs text-gray-400">
-                    <i class="ri-shield-check-line"></i>
-                    Account locks after 5 failed attempts for security
-                </p>
+                <p class="auth-footnote"><i class="ri-shield-check-line" aria-hidden="true"></i> Account locks after 5 failed attempts for security</p>
+
+                <hr class="divider">
+
+                <p class="auth-below">Don't have an account? <a href="/register" style="font-weight: 600;">Create one</a></p>
             </div>
-
-            <div class="divider my-6">OR</div>
-
-            <p class="text-center text-gray-600">
-                Don't have an account? 
-                <a href="/register" class="text-blue-600 font-medium hover:underline">Create one</a>
-            </p>
         </div>
     </div>
 </body>

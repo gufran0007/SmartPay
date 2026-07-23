@@ -1,196 +1,153 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="light">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Invoice | Smart Pay</title>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.23/dist/full.min.css" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
-</head>
-<body class="bg-gray-50 min-h-screen">
-    <nav class="bg-gradient-to-r from-blue-600 to-teal-600 text-white shadow-lg">
-        <div class="container mx-auto px-4 py-3">
-            <div class="flex justify-between items-center">
-                <a href="/dashboard" class="flex items-center gap-2">
-                    <i class="ri-file-invoice-dollar-line text-2xl"></i>
-                    <span class="text-xl font-bold">Smart Pay</span>
-                </a>
-                <a href="/view-invoice/{{ inv.id }}" class="btn btn-sm btn-outline border-white text-white hover:bg-white hover:text-blue-600">
-                    <i class="ri-arrow-left-line"></i> Back to Invoice
-                </a>
+{% extends "base.html" %}
+
+{% block title %}Edit Invoice · Smart Pay{% endblock %}
+
+{% block head %}
+<style>
+    .form-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-5); margin-bottom: var(--space-5); }
+    .form-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5); margin-bottom: var(--space-5); }
+    @media (max-width: 700px) { .form-grid-2, .form-grid-3 { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="app-body narrow">
+    <div style="margin-bottom: var(--space-5);">
+        <h1 style="font-size: var(--text-xl);">Edit invoice #{{ inv.invoice_number or inv.id }}</h1>
+        <p class="text-slate" style="margin: 0;">Update invoice details below</p>
+    </div>
+
+    {% if errors %}
+    <div class="alert alert-error" style="margin-bottom: var(--space-5); display:block;">
+        <strong style="display:block; margin-bottom: 4px;"><i class="ri-error-warning-line" aria-hidden="true"></i> Please fix the following errors:</strong>
+        <ul style="margin: 0; padding-left: 20px;">
+            {% for field, msg in errors.items() %}
+            <li>{{ field }}: {{ msg }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <form method="post" action="/update-invoice/{{ inv.id }}" class="card card-pad" id="editForm" novalidate>
+
+        <div class="form-grid-2">
+            <div class="field">
+                <label for="invoice_number">Invoice number</label>
+                <input type="text" id="invoice_number" name="invoice_number" value="{{ inv.invoice_number }}"
+                       pattern="^[A-Za-z0-9\-_/]+$" maxlength="50"
+                       class="input {% if errors and errors.invoice_number %}input-error{% endif %}"
+                       placeholder="e.g. INV-2024-001">
+                <span class="hint">Letters, numbers, hyphens only</span>
+            </div>
+
+            <div class="field">
+                <label for="currency">Currency</label>
+                <select name="currency" id="currency" class="{% if errors and errors.currency %}input-error{% endif %}">
+                    <option value="">Select currency</option>
+                    {% for c in ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR', 'PKR', 'AED'] %}
+                    <option value="{{ c }}" {% if inv.currency == c %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                </select>
             </div>
         </div>
-    </nav>
 
-    <main class="container mx-auto px-6 py-8 max-w-3xl">
-        <div class="mb-6">
-            <h1 class="text-2xl font-bold text-gray-900">Edit Invoice #{{ inv.invoice_number or inv.id }}</h1>
-            <p class="text-gray-500">Update invoice details below</p>
-        </div>
+        <div class="form-grid-3">
+            <div class="field">
+                <label for="amountInput">Amount</label>
+                <input type="text" name="amount" value="{{ inv.amount }}" id="amountInput"
+                       class="input {% if errors and errors.amount %}input-error{% endif %}"
+                       placeholder="e.g. 5000.00">
+                {% if errors and errors.amount %}
+                <span class="error-text">{{ errors.amount }}</span>
+                {% else %}
+                <span class="hint">Numbers only</span>
+                {% endif %}
+            </div>
 
-        {% if errors %}
-        <div class="alert alert-error mb-6">
-            <div>
-                <i class="ri-error-warning-line text-xl"></i>
-                <div>
-                    <h3 class="font-bold">Please fix the following errors:</h3>
-                    <ul class="text-sm mt-1">
-                        {% for field, msg in errors.items() %}
-                        <li>{{ field }}: {{ msg }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
+            <div class="field">
+                <label for="date">Invoice date</label>
+                <input type="date" id="date" name="date" value="{{ inv.date }}"
+                       pattern="^\d{4}-\d{2}-\d{2}$|^\d{2}[/\-\.]\d{2}[/\-\.]\d{4}$"
+                       class="input {% if errors and errors.date %}input-error{% endif %}"
+                       placeholder="YYYY-MM-DD">
+                {% if errors and errors.date %}<span class="error-text">{{ errors.date }}</span>{% endif %}
+            </div>
+
+            <div class="field">
+                <label for="due_date">Due date</label>
+                <input type="date" id="due_date" name="due_date" value="{{ inv.due_date }}"
+                       pattern="^\d{4}-\d{2}-\d{2}$|^\d{2}[/\-\.]\d{2}[/\-\.]\d{4}$"
+                       class="input {% if errors and errors.due_date %}input-error{% endif %}"
+                       placeholder="YYYY-MM-DD">
+                {% if errors and errors.due_date %}<span class="error-text">{{ errors.due_date }}</span>{% endif %}
             </div>
         </div>
-        {% endif %}
 
-        <form method="post" action="/update-invoice/{{ inv.id }}" class="bg-white rounded-2xl shadow-sm p-8" id="editForm" novalidate>
+        <div class="eyebrow" style="margin-bottom: var(--space-3);">Customer details</div>
 
-            <!-- Invoice Number -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div class="form-control">
-                    <label class="label"><span class="label-text font-medium">Invoice Number</span></label>
-                    <input type="text" name="invoice_number" value="{{ inv.invoice_number }}"
-                           pattern="^[A-Za-z0-9\-_/]+$" maxlength="50"
-                           class="input input-bordered {% if errors and errors.invoice_number %}input-error{% endif %}"
-                           placeholder="e.g. INV-2024-001">
-                    <label class="label"><span class="label-text-alt text-gray-400">Letters, numbers, hyphens only</span></label>
-                </div>
-
-                <div class="form-control">
-                    <label class="label"><span class="label-text font-medium">Currency</span></label>
-                    <select name="currency" class="select select-bordered {% if errors and errors.currency %}select-error{% endif %}">
-                        <option value="">Select currency</option>
-                        {% for c in ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR', 'PKR', 'AED'] %}
-                        <option value="{{ c }}" {% if inv.currency == c %}selected{% endif %}>{{ c }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+        <div class="form-grid-2">
+            <div class="field">
+                <label for="customer_name">Customer name</label>
+                <input type="text" id="customer_name" name="customer_name" value="{{ inv.customer_name }}"
+                       minlength="2" maxlength="200"
+                       class="input {% if errors and errors.customer_name %}input-error{% endif %}"
+                       placeholder="Full name">
+                {% if errors and errors.customer_name %}<span class="error-text">{{ errors.customer_name }}</span>{% endif %}
             </div>
 
-            <!-- Amount & Dates -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div class="form-control">
-                    <label class="label"><span class="label-text font-medium">Amount</span></label>
-                    <input type="text" name="amount" value="{{ inv.amount }}"
-                           id="amountInput"
-                           class="input input-bordered {% if errors and errors.amount %}input-error{% endif %}"
-                           placeholder="e.g. 5000.00">
-                    {% if errors and errors.amount %}
-                    <label class="label"><span class="label-text-alt text-error">{{ errors.amount }}</span></label>
-                    {% else %}
-                    <label class="label"><span class="label-text-alt text-gray-400">Numbers only</span></label>
-                    {% endif %}
-                </div>
+            <div class="field">
+                <label for="emailInput">Customer email</label>
+                <input type="email" name="customer_email" value="{{ inv.customer_email }}" id="emailInput"
+                       class="input {% if errors and errors.customer_email %}input-error{% endif %}"
+                       placeholder="customer@company.com">
+                {% if errors and errors.customer_email %}<span class="error-text">{{ errors.customer_email }}</span>{% endif %}
+            </div>
+        </div>
 
-                <div class="form-control">
-                    <label class="label"><span class="label-text font-medium">Invoice Date</span></label>
-                    <input type="date" name="date" value="{{ inv.date }}"
-                           pattern="^\d{4}-\d{2}-\d{2}$|^\d{2}[/\-\.]\d{2}[/\-\.]\d{4}$"
-                           class="input input-bordered {% if errors and errors.date %}input-error{% endif %}"
-                           placeholder="YYYY-MM-DD">
-                    {% if errors and errors.date %}
-                    <label class="label"><span class="label-text-alt text-error">{{ errors.date }}</span></label>
-                    {% endif %}
-                </div>
+        <div class="field" style="margin-bottom: var(--space-5);">
+            <label for="customer_address">Customer address</label>
+            <input type="text" id="customer_address" name="customer_address" value="{{ inv.customer_address }}"
+                   maxlength="500" class="input" placeholder="Street address, city, country">
+        </div>
 
-                <div class="form-control">
-                    <label class="label"><span class="label-text font-medium">Due Date</span></label>
-                    <input type="date" name="due_date" value="{{ inv.due_date }}"
-                           pattern="^\d{4}-\d{2}-\d{2}$|^\d{2}[/\-\.]\d{2}[/\-\.]\d{4}$"
-                           class="input input-bordered {% if errors and errors.due_date %}input-error{% endif %}"
-                           placeholder="YYYY-MM-DD">
-                    {% if errors and errors.due_date %}
-                    <label class="label"><span class="label-text-alt text-error">{{ errors.due_date }}</span></label>
-                    {% endif %}
-                </div>
+        <div class="eyebrow" style="margin-bottom: var(--space-3);">Company details</div>
+
+        <div class="form-grid-2" style="margin-bottom: var(--space-6);">
+            <div class="field">
+                <label for="company_name">Company name</label>
+                <input type="text" id="company_name" name="company_name" value="{{ inv.company_name }}"
+                       minlength="2" maxlength="200" class="input" placeholder="Company name">
             </div>
 
-            <div class="divider">Customer Details</div>
-
-            <!-- Customer Info -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div class="form-control">
-                    <label class="label"><span class="label-text font-medium">Customer Name</span></label>
-                    <input type="text" name="customer_name" value="{{ inv.customer_name }}"
-                           minlength="2" maxlength="200"
-                           class="input input-bordered {% if errors and errors.customer_name %}input-error{% endif %}"
-                           placeholder="Full name">
-                    {% if errors and errors.customer_name %}
-                    <label class="label"><span class="label-text-alt text-error">{{ errors.customer_name }}</span></label>
-                    {% endif %}
-                </div>
-
-                <div class="form-control">
-                    <label class="label"><span class="label-text font-medium">Customer Email</span></label>
-                    <input type="email" name="customer_email" value="{{ inv.customer_email }}"
-                           id="emailInput"
-                           class="input input-bordered {% if errors and errors.customer_email %}input-error{% endif %}"
-                           placeholder="customer@company.com">
-                    {% if errors and errors.customer_email %}
-                    <label class="label"><span class="label-text-alt text-error">{{ errors.customer_email }}</span></label>
-                    {% endif %}
-                </div>
+            <div class="field">
+                <label for="vat_id">VAT / tax ID</label>
+                <input type="text" id="vat_id" name="vat_id" value="{{ inv.vat_id }}"
+                       pattern="^[A-Z0-9\-]{5,20}$" maxlength="20"
+                       class="input {% if errors and errors.vat_id %}input-error{% endif %}"
+                       placeholder="e.g. GB123456789">
+                {% if errors and errors.vat_id %}<span class="error-text">{{ errors.vat_id }}</span>{% endif %}
             </div>
+        </div>
 
-            <div class="form-control mb-6">
-                <label class="label"><span class="label-text font-medium">Customer Address</span></label>
-                <input type="text" name="customer_address" value="{{ inv.customer_address }}"
-                       maxlength="500"
-                       class="input input-bordered {% if errors and errors.customer_address %}input-error{% endif %}"
-                       placeholder="Street address, city, country">
-            </div>
+        <div style="display:flex; gap: var(--space-3);">
+            <button type="submit" class="btn btn-primary" id="submitBtn"><i class="ri-save-line" aria-hidden="true"></i> Save changes</button>
+            <a href="/view-invoice/{{ inv.id }}" class="btn btn-secondary"><i class="ri-close-line" aria-hidden="true"></i> Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
 
-            <div class="divider">Company Details</div>
-
-            <!-- Company Info -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <div class="form-control">
-                    <label class="label"><span class="label-text font-medium">Company Name</span></label>
-                    <input type="text" name="company_name" value="{{ inv.company_name }}"
-                           minlength="2" maxlength="200"
-                           class="input input-bordered {% if errors and errors.company_name %}input-error{% endif %}"
-                           placeholder="Company name">
-                </div>
-
-                <div class="form-control">
-                    <label class="label"><span class="label-text font-medium">VAT / Tax ID</span></label>
-                    <input type="text" name="vat_id" value="{{ inv.vat_id }}"
-                           pattern="^[A-Z0-9\-]{5,20}$" maxlength="20"
-                           class="input input-bordered {% if errors and errors.vat_id %}input-error{% endif %}"
-                           placeholder="e.g. GB123456789">
-                    {% if errors and errors.vat_id %}
-                    <label class="label"><span class="label-text-alt text-error">{{ errors.vat_id }}</span></label>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Buttons -->
-            <div class="flex gap-3">
-                <button type="submit" class="btn btn-primary gap-2" id="submitBtn">
-                    <i class="ri-save-line"></i> Save Changes
-                </button>
-                <a href="/view-invoice/{{ inv.id }}" class="btn btn-outline gap-2">
-                    <i class="ri-close-line"></i> Cancel
-                </a>
-            </div>
-        </form>
-    </main>
-
-    <script>
-    // Client-side validation before submit
-    document.getElementById('editForm').addEventListener('submit', function(e) {
+{% block scripts %}
+<script>
+    document.getElementById('editForm').addEventListener('submit', function (e) {
         var errors = [];
 
-        // Amount validation
         var amt = document.getElementById('amountInput').value.replace(/[,$€£]/g, '').trim();
         if (amt && (isNaN(parseFloat(amt)) || parseFloat(amt) < 0)) {
             errors.push('Amount must be a valid positive number');
             document.getElementById('amountInput').classList.add('input-error');
         }
 
-        // Email validation
         var email = document.getElementById('emailInput').value.trim();
         if (email && email !== 'N/A' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             errors.push('Invalid email format');
@@ -203,10 +160,8 @@
         }
     });
 
-    // Remove error styling on input
-    document.querySelectorAll('.input-error').forEach(function(el) {
-        el.addEventListener('input', function() { this.classList.remove('input-error'); });
+    document.querySelectorAll('.input-error').forEach(function (el) {
+        el.addEventListener('input', function () { this.classList.remove('input-error'); });
     });
-    </script>
-</body>
-</html>
+</script>
+{% endblock %}

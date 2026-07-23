@@ -1,156 +1,92 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="light">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prediction Analytics | Smart Pay</title>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.23/dist/full.min.css" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
-</head>
-<body class="bg-gray-50 min-h-screen">
-    <nav class="bg-gradient-to-r from-blue-600 to-teal-600 text-white shadow-lg">
-        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <a href="/dashboard" class="flex items-center gap-2 hover:opacity-80">
-                <i class="ri-arrow-left-line"></i> Dashboard
-            </a>
-            <h1 class="font-bold text-lg">Prediction Analytics</h1>
-            <a href="/customers" class="btn btn-sm btn-outline border-white text-white hover:bg-white hover:text-blue-600">
-                <i class="ri-group-line"></i> Customers
-            </a>
-        </div>
-    </nav>
+{% extends "base.html" %}
 
-    <main class="container mx-auto px-6 py-8 max-w-5xl">
+{% block title %}Prediction Analytics · Smart Pay{% endblock %}
 
-        <!-- Model Status -->
-        <div class="bg-white rounded-2xl shadow-sm p-6 mb-8">
-            <h3 class="font-bold text-gray-900 mb-4">Model Status</h3>
-            {% if model_info.mode == 'ml' %}
-            <div class="flex items-center gap-3 mb-3">
-                <span class="badge badge-success gap-1"><i class="ri-brain-line"></i> Machine learning</span>
-                <span class="text-sm text-gray-500">trained on {{ model_info.invoices_seen }} paid invoices</span>
-            </div>
-            {% if model_info.held_out_accuracy is not none %}
-            <p class="text-sm text-gray-600">Held-out accuracy on invoices the model didn't train on:
-                <strong>{{ (model_info.held_out_accuracy * 100)|round(1) }}%</strong></p>
-            {% else %}
-            <p class="text-sm text-gray-600">Held-out accuracy isn't available for this training run.</p>
-            {% endif %}
-            {% else %}
-            <div class="flex items-center gap-3 mb-3">
-                <span class="badge badge-warning gap-1"><i class="ri-scales-3-line"></i> Payment-terms heuristic</span>
-                <span class="text-sm text-gray-500">{{ model_info.invoices_seen }} of {{ model_info.invoices_needed }} paid invoices needed for ML</span>
-            </div>
-            <p class="text-sm text-gray-600">
-                Not enough paid invoice history yet to train a machine-learning model for this account.
-                Predictions use a simple, explainable rule based on payment terms instead of ML —
-                import more paid invoice history to unlock ML predictions.
-            </p>
-            {% endif %}
-        </div>
+{% block head %}
+<style>
+    .overview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); margin-bottom: var(--space-6); }
+    @media (max-width: 700px) { .overview-grid { grid-template-columns: 1fr; } }
+    details.how-it-works { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: var(--space-5); }
+    details.how-it-works summary { cursor: pointer; font-weight: 700; font-family: var(--font-display); list-style: none; }
+    details.how-it-works summary::-webkit-details-marker { display: none; }
+    details.how-it-works summary::before { content: '\25B8'; display: inline-block; margin-right: 8px; transition: transform .15s ease; }
+    details.how-it-works[open] summary::before { transform: rotate(90deg); }
+    details.how-it-works p { color: var(--ink-soft); font-size: var(--text-sm); margin-top: var(--space-3); }
+</style>
+{% endblock %}
 
-        <!-- Overview Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div class="bg-white rounded-2xl shadow-sm p-5">
-                <div class="text-sm text-gray-500 mb-1">Predictions made</div>
-                <div class="text-3xl font-bold text-gray-900">{{ total_predictions }}</div>
-            </div>
-            <div class="bg-white rounded-2xl shadow-sm p-5">
-                <div class="text-sm text-gray-500 mb-1">Flagged at risk</div>
-                <div class="text-3xl font-bold text-red-600">{{ high_risk_count }}</div>
-            </div>
-            <div class="bg-white rounded-2xl shadow-sm p-5">
-                <div class="text-sm text-gray-500 mb-1">Avg confidence</div>
-                <div class="text-3xl font-bold text-gray-900">{{ avg_confidence }}%</div>
-            </div>
+{% block content %}
+<div class="app-body wide">
+    <div class="card panel">
+        <h3 style="font-size: var(--text-base);">Model status</h3>
+        {% if model_info.mode == 'ml' %}
+        <div style="display:flex; align-items:center; gap: var(--space-3); margin-bottom: var(--space-3);">
+            <span class="pill pill-success"><i class="ri-brain-line" aria-hidden="true"></i> Machine learning</span>
+            <span class="text-slate" style="font-size: var(--text-sm);">trained on {{ model_info.invoices_seen }} paid invoices</span>
         </div>
+        {% if model_info.held_out_accuracy is not none %}
+        <p class="text-slate" style="font-size: var(--text-sm); margin:0;">Held-out accuracy on invoices the model didn't train on: <strong style="color: var(--ink);">{{ (model_info.held_out_accuracy * 100)|round(1) }}%</strong></p>
+        {% else %}
+        <p class="text-slate" style="font-size: var(--text-sm); margin:0;">Held-out accuracy isn't available for this training run.</p>
+        {% endif %}
+        {% else %}
+        <div style="display:flex; align-items:center; gap: var(--space-3); margin-bottom: var(--space-3);">
+            <span class="pill pill-warning"><i class="ri-scales-3-line" aria-hidden="true"></i> Payment-terms heuristic</span>
+            <span class="text-slate" style="font-size: var(--text-sm);">{{ model_info.invoices_seen }} of {{ model_info.invoices_needed }} paid invoices needed for ML</span>
+        </div>
+        <p class="text-slate" style="font-size: var(--text-sm); margin:0;">Not enough paid invoice history yet to train a machine-learning model for this account. Predictions use a simple, explainable rule based on payment terms instead of ML — import more paid invoice history to unlock ML predictions.</p>
+        {% endif %}
+    </div>
 
-        <!-- Recent Predictions -->
-        <div class="bg-white rounded-2xl shadow-sm p-6 mb-8">
-            <h3 class="font-bold text-gray-900 mb-1">Recent Predictions</h3>
-            <p class="text-sm text-gray-400 mb-4">Latest invoices you've checked, and what produced each result</p>
-            {% if recent_predictions %}
-            <div class="overflow-x-auto">
-                <table class="table table-sm">
-                    <thead>
-                        <tr class="text-gray-500 text-xs uppercase">
-                            <th>Invoice</th>
-                            <th>Customer</th>
-                            <th>Amount</th>
-                            <th>Result</th>
-                            <th>Score</th>
-                            <th>Mode</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for inv in recent_predictions %}
-                        <tr>
-                            <td>
-                                <a href="/view-invoice/{{ inv.id }}" class="text-blue-600 hover:underline font-medium">
-                                    #{{ inv.invoice_number if inv.invoice_number != 'N/A' else inv.id }}
-                                </a>
-                            </td>
-                            <td>{{ inv.customer_name if inv.customer_name != 'N/A' else 'Unknown' }}</td>
-                            <td>{{ inv.amount }} {{ inv.currency if inv.currency != 'N/A' else '' }}</td>
-                            <td>
-                                {% if inv.features and inv.features.predicted_label == 1 %}
-                                <span class="badge badge-error badge-sm gap-1"><i class="ri-alarm-warning-line"></i> At Risk</span>
-                                {% else %}
-                                <span class="badge badge-success badge-sm gap-1"><i class="ri-check-line"></i> Looks Good</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if inv.features %}
-                                <span class="font-medium">{{ (inv.features.predicted_probability * 100)|int }}%</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if inv.features and inv.features.prediction_mode == 'ml' %}
-                                <span class="badge badge-sm badge-success gap-1">ML</span>
-                                {% elif inv.features and inv.features.prediction_mode == 'heuristic' %}
-                                <span class="badge badge-sm badge-warning gap-1">Heuristic</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <a href="/ml/explain/{{ inv.id }}" class="btn btn-xs btn-ghost text-blue-600">Why?</a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <p class="text-gray-400 text-center py-8">No predictions yet. Run one from an invoice's detail page.</p>
-            {% endif %}
-        </div>
+    <div class="overview-grid">
+        <div class="card stat-card"><div class="stat-label" style="text-transform:none; letter-spacing:0;">Predictions made</div><div class="stat-value">{{ total_predictions }}</div></div>
+        <div class="card stat-card"><div class="stat-label" style="text-transform:none; letter-spacing:0;">Flagged at risk</div><div class="stat-value text-critical">{{ high_risk_count }}</div></div>
+        <div class="card stat-card"><div class="stat-label" style="text-transform:none; letter-spacing:0;">Avg confidence</div><div class="stat-value">{{ avg_confidence }}%</div></div>
+    </div>
 
-        <!-- How It Works -->
-        <div class="collapse collapse-arrow bg-white rounded-2xl shadow-sm">
-            <input type="checkbox" />
-            <div class="collapse-title font-bold text-gray-900">
-                <i class="ri-information-line text-blue-500"></i> How does the prediction work?
-            </div>
-            <div class="collapse-content text-sm text-gray-600 space-y-3">
-                <p>
-                    Each account gets its own Random Forest model, trained only on that account's
-                    own paid invoices — never on another account's data, and never on a shared
-                    demo dataset. It needs at least {{ model_info.invoices_needed or 20 }} paid
-                    invoices before there's enough signal to trust over a simple rule.
-                </p>
-                <p>
-                    Below that threshold, predictions use a transparent heuristic based on payment
-                    terms (shorter terms and larger amounts are flagged as higher risk) — never
-                    presented as machine learning. Every prediction on this page states which one
-                    produced it.
-                </p>
-                <p>
-                    Import more invoice history — including which invoices were paid and when —
-                    to train (or retrain) the model on real outcomes.
-                </p>
-            </div>
+    <div class="card panel">
+        <h3 style="font-size: var(--text-base); margin-bottom: 2px;">Recent predictions</h3>
+        <p class="text-slate" style="font-size: var(--text-sm); margin-top:0;">Latest invoices you've checked, and what produced each result</p>
+        {% if recent_predictions %}
+        <div class="table-scroll">
+            <table class="data-table">
+                <thead>
+                    <tr><th>Invoice</th><th>Customer</th><th>Amount</th><th>Result</th><th>Score</th><th>Mode</th><th></th></tr>
+                </thead>
+                <tbody>
+                    {% for inv in recent_predictions %}
+                    <tr>
+                        <td data-label="Invoice"><a href="/view-invoice/{{ inv.id }}" style="font-weight:600;">#{{ inv.invoice_number if inv.invoice_number != 'N/A' else inv.id }}</a></td>
+                        <td data-label="Customer">{{ inv.customer_name if inv.customer_name != 'N/A' else 'Unknown' }}</td>
+                        <td data-label="Amount" class="amount">{{ inv.amount }} {{ inv.currency if inv.currency != 'N/A' else '' }}</td>
+                        <td data-label="Result">
+                            {% if inv.features and inv.features.predicted_label == 1 %}
+                            <span class="pill pill-critical"><i class="ri-alarm-warning-line" aria-hidden="true"></i> At risk</span>
+                            {% else %}
+                            <span class="pill pill-success"><i class="ri-check-line" aria-hidden="true"></i> Looks good</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Score">{% if inv.features %}{{ (inv.features.predicted_probability * 100)|int }}%{% endif %}</td>
+                        <td data-label="Mode">
+                            {% if inv.features and inv.features.prediction_mode == 'ml' %}<span class="pill pill-success">ML</span>
+                            {% elif inv.features and inv.features.prediction_mode == 'heuristic' %}<span class="pill pill-warning">Heuristic</span>{% endif %}
+                        </td>
+                        <td data-label=""><a href="/ml/explain/{{ inv.id }}" class="btn btn-ghost btn-sm">Why?</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-    </main>
-</body>
-</html>
+        {% else %}
+        <div class="state-box"><strong>No predictions yet</strong>Run one from an invoice's detail page.</div>
+        {% endif %}
+    </div>
+
+    <details class="how-it-works">
+        <summary><i class="ri-information-line" style="color: var(--signal);" aria-hidden="true"></i> How does the prediction work?</summary>
+        <p>Each account gets its own Random Forest model, trained only on that account's own paid invoices — never on another account's data, and never on a shared demo dataset. It needs at least {{ model_info.invoices_needed or 20 }} paid invoices before there's enough signal to trust over a simple rule.</p>
+        <p>Below that threshold, predictions use a transparent heuristic based on payment terms (shorter terms and larger amounts are flagged as higher risk) — never presented as machine learning. Every prediction on this page states which one produced it.</p>
+        <p>Import more invoice history — including which invoices were paid and when — to train (or retrain) the model on real outcomes.</p>
+    </details>
+</div>
+{% endblock %}

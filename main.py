@@ -52,9 +52,8 @@ GMAIL_APP_PASSWORD = os.environ["GMAIL_APP_PASSWORD"]
 def root(request: Request):
     if request.session.get("user_id"):
         return RedirectResponse("/dashboard", status_code=303)
-    return templates.TemplateResponse("dashboard.html", {
+    return templates.TemplateResponse("landing.html", {
         "request": request,
-        "current_user": None,
     })
 
 @app.post("/send-reminder/{invoice_id}")

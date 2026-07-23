@@ -1,72 +1,51 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="light">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Confirm Column Mapping | Smart Pay</title>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.23/dist/full.min.css" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
-</head>
-<body class="bg-gray-50 min-h-screen">
-    <nav class="bg-white border-b shadow-sm">
-        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <a href="/import" class="flex items-center gap-2 text-gray-600 hover:text-blue-600">
-                <i class="ri-arrow-left-line"></i> Cancel
-            </a>
-            <h1 class="font-bold text-gray-900">Confirm Column Mapping</h1>
-            <span></span>
-        </div>
-    </nav>
+{% extends "base.html" %}
 
-    <main class="container mx-auto px-6 py-12">
-        <div class="max-w-3xl mx-auto">
-            {% if request.query_params.get('error') %}
-            <div class="alert alert-error mb-6">
-                <i class="ri-error-warning-line"></i>
-                <span>{{ request.query_params.get('error') }}</span>
+{% block title %}Confirm Column Mapping · Smart Pay{% endblock %}
+
+{% block head %}
+<style>
+    .mapping-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-3); align-items: center; padding: var(--space-3) 0; border-bottom: 1px solid var(--border); }
+    .mapping-row:last-child { border-bottom: none; }
+    @media (max-width: 700px) { .mapping-row { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="app-body">
+    {% if request.query_params.get('error') %}
+    <div class="alert alert-error" style="margin-bottom: var(--space-5);">
+        <i class="ri-error-warning-line alert-icon" aria-hidden="true"></i>
+        <span>{{ request.query_params.get('error') }}</span>
+    </div>
+    {% endif %}
+
+    <div class="card card-pad">
+        <p class="text-slate" style="margin-bottom: var(--space-5);">
+            File: <strong style="color: var(--ink);">{{ pending.filename }}</strong>.
+            We matched each field to a column below — nothing is imported until you confirm.
+            Fields marked <strong class="text-critical">*</strong> are required.
+        </p>
+
+        <form action="/import/{{ pending.id }}/confirm" method="post">
+            {% for f in fields %}
+            <div class="mapping-row">
+                <label for="map_{{ f.name }}" style="font-weight:600;">{{ f.label }}{% if f.required %}<span class="text-critical">*</span>{% endif %}</label>
+                <select name="map_{{ f.name }}" id="map_{{ f.name }}" {% if f.required %}required{% endif %}>
+                    <option value="" {% if not f.source_column %}selected{% endif %}>&mdash; none &mdash;</option>
+                    {% for h in headers %}
+                    <option value="{{ h }}" {% if h == f.source_column %}selected{% endif %}>{{ h }}</option>
+                    {% endfor %}
+                </select>
+                <span class="text-slate" style="font-size: var(--text-sm);">
+                    {% if f.source_column %}{{ (f.confidence * 100) | round | int }}% confidence{% else %}no confident match{% endif %}
+                </span>
             </div>
-            {% endif %}
+            {% endfor %}
 
-            <div class="bg-white rounded-2xl shadow-sm p-8">
-                <p class="text-gray-600 mb-6">
-                    File: <span class="font-medium text-gray-900">{{ pending.filename }}</span>.
-                    We matched each field to a column below — nothing is imported until you confirm.
-                    Fields marked <span class="text-red-600 font-medium">*</span> are required.
-                </p>
-
-                <form action="/import/{{ pending.id }}/confirm" method="post">
-                    <div class="space-y-4">
-                        {% for f in fields %}
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-center border-b pb-3">
-                            <label class="font-medium text-gray-800">
-                                {{ f.label }}{% if f.required %}<span class="text-red-600">*</span>{% endif %}
-                            </label>
-                            <select name="map_{{ f.name }}" class="select select-bordered w-full" {% if f.required %}required{% endif %}>
-                                <option value="" {% if not f.source_column %}selected{% endif %}>— none —</option>
-                                {% for h in headers %}
-                                <option value="{{ h }}" {% if h == f.source_column %}selected{% endif %}>{{ h }}</option>
-                                {% endfor %}
-                            </select>
-                            <span class="text-sm text-gray-500">
-                                {% if f.source_column %}
-                                    {{ (f.confidence * 100) | round | int }}% confidence
-                                {% else %}
-                                    no confident match
-                                {% endif %}
-                            </span>
-                        </div>
-                        {% endfor %}
-                    </div>
-
-                    <div class="mt-8">
-                        <button type="submit" class="btn btn-primary w-full gap-2">
-                            <i class="ri-check-line"></i> Confirm mapping &amp; import
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </main>
-</body>
-</html>
+            <button type="submit" class="btn btn-primary btn-block" style="margin-top: var(--space-6);">
+                <i class="ri-check-line" aria-hidden="true"></i> Confirm mapping &amp; import
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

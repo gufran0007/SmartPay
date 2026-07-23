@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Pay | AI-Powered Invoice Management</title>
+    <meta name="description" content="SmartPay reads your invoices and predicts which customers are likely to pay late, so you can chase risky invoices early and protect your cash flow.">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+    <link href="/static/css/tokens.css" rel="stylesheet">
+    <link href="/static/css/components.css" rel="stylesheet">
+    <style>
+        /* Landing-only layout — a lightweight placeholder ahead of the
+           dedicated Stage 5 homepage/pricing build. */
+        .guest-nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: var(--space-3) var(--space-5); }
+        .guest-nav-inner { max-width: 1080px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+        .guest-nav .brand { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 700; font-size: var(--text-lg); color: var(--ink); text-decoration: none; }
+        .guest-nav .brand svg { color: var(--signal); }
+        .guest-nav .actions { display: flex; align-items: center; gap: var(--space-3); }
+        .guest-nav .actions a.login { color: var(--ink-soft); text-decoration: none; font-weight: 600; font-size: var(--text-sm); }
+
+        .hero { max-width: 1080px; margin: 0 auto; padding: var(--space-8) var(--space-5) var(--space-7); }
+        .hero-inner { max-width: 640px; }
+        .hero .eyebrow-row { display: inline-flex; align-items: center; gap: 10px; margin-bottom: var(--space-4); }
+        .hero .eyebrow-row .rule { width: 28px; height: 1px; background: var(--signal); display: inline-block; }
+        .hero h1 { font-size: var(--text-3xl); line-height: 1.1; margin-bottom: var(--space-4); }
+        .hero p.lede { font-size: var(--text-lg); color: var(--ink-soft); max-width: 56ch; margin-bottom: var(--space-5); }
+        .hero .cta-row { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+        .hero .trust-row { margin-top: var(--space-5); display: flex; gap: var(--space-5); color: var(--slate); font-size: var(--text-sm); flex-wrap: wrap; }
+        .hero .trust-row span { display: inline-flex; align-items: center; gap: 6px; }
+        .hero .trust-row i { color: var(--signal); }
+
+        .section { border-top: 1px solid var(--border); }
+        .section-inner { max-width: 1080px; margin: 0 auto; padding: var(--space-7) var(--space-5); }
+        .section h2 { font-size: var(--text-2xl); margin-bottom: var(--space-2); }
+        .section > .section-inner > p.section-desc { color: var(--slate); font-size: var(--text-lg); max-width: 60ch; margin-bottom: var(--space-6); }
+
+        .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5); }
+        .feature-grid .card { padding: var(--space-5); }
+        .feature-grid .icon-badge { width: 44px; height: 44px; border-radius: var(--radius-md); background: var(--signal-tint); color: var(--signal); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; margin-bottom: var(--space-4); }
+        .feature-grid h3 { font-size: var(--text-lg); margin-bottom: var(--space-2); }
+        .feature-grid p { color: var(--ink-soft); margin: 0; }
+
+        .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-5); }
+        .steps .step-num { width: 44px; height: 44px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; color: var(--signal); margin-bottom: var(--space-3); }
+        .steps h3 { font-size: var(--text-base); margin-bottom: var(--space-1); }
+        .steps p { color: var(--slate); font-size: var(--text-sm); margin: 0; }
+
+        .cta-band { background: var(--ink); color: var(--paper); }
+        .cta-band h2 { color: var(--paper); }
+        .cta-band p { color: #C9D2D0; max-width: 56ch; }
+        .cta-band .btn-secondary { background: transparent; border-color: rgba(249,250,250,0.35); color: var(--paper); }
+        .cta-band .btn-secondary:hover { border-color: var(--paper); color: var(--paper); }
+
+        .guest-footer { border-top: 1px solid var(--border); padding: var(--space-5); }
+        .guest-footer-inner { max-width: 1080px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); color: var(--slate); font-size: var(--text-sm); }
+        .guest-footer-inner a { color: var(--slate); }
+        .guest-footer-inner a:hover { color: var(--signal); }
+
+        @media (max-width: 800px) {
+            .feature-grid { grid-template-columns: 1fr; }
+            .steps { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 480px) {
+            .guest-nav .actions .login { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="guest-nav" aria-label="Main">
+        <div class="guest-nav-inner">
+            <a href="/" class="brand">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <rect x="2" y="2" width="20" height="20" rx="5" fill="currentColor"/>
+                    <path d="M7 9.5H17M7 13H13.5M7 16.5H10.5" stroke="var(--surface)" stroke-width="1.6" stroke-linecap="round"/>
+                </svg>
+                Smart Pay
+            </a>
+            <div class="actions">
+                <a href="https://github.com/gufran0007/smartpay" target="_blank" rel="noopener" class="login"><i class="ri-github-fill" aria-hidden="true"></i> Source</a>
+                <a href="/login" class="login">Log in</a>
+                <a href="/register" class="btn btn-primary btn-sm">Get started</a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="hero-inner">
+            <span class="eyebrow-row"><span class="rule" aria-hidden="true"></span><span class="eyebrow">Invoice intelligence</span></span>
+            <h1>Know which invoices will be paid late.</h1>
+            <p class="lede">SmartPay reads your invoices and predicts which customers are likely to pay late — so you can chase the risky ones early and keep your cash flow healthy.</p>
+            <div class="cta-row">
+                <a href="/register" class="btn btn-primary">Get started <i class="ri-arrow-right-line" aria-hidden="true"></i></a>
+                <a href="https://github.com/gufran0007/smartpay" target="_blank" rel="noopener" class="btn btn-secondary"><i class="ri-github-fill" aria-hidden="true"></i> View source</a>
+            </div>
+            <div class="trust-row">
+                <span><i class="ri-checkbox-circle-line" aria-hidden="true"></i> Free to use</span>
+                <span><i class="ri-checkbox-circle-line" aria-hidden="true"></i> Open source</span>
+            </div>
+        </div>
+    </header>
+
+    <section class="section">
+        <div class="section-inner">
+            <h2>A clearer way to get paid</h2>
+            <p class="section-desc">Three simple things SmartPay does for your business.</p>
+            <div class="feature-grid">
+                <div class="card">
+                    <div class="icon-badge"><i class="ri-radar-line" aria-hidden="true"></i></div>
+                    <h3>See risk early</h3>
+                    <p>SmartPay predicts which invoices are likely to be paid late, so you can act before they ever go overdue.</p>
+                </div>
+                <div class="card">
+                    <div class="icon-badge"><i class="ri-magic-line" aria-hidden="true"></i></div>
+                    <h3>Less data entry</h3>
+                    <p>Upload an invoice and the important details — customer, amount, due date — are read and filled in for you.</p>
+                </div>
+                <div class="card">
+                    <div class="icon-badge"><i class="ri-line-chart-line" aria-hidden="true"></i></div>
+                    <h3>Protect cash flow</h3>
+                    <p>Spend your time chasing the customers most likely to slip, and keep money arriving when you expect it.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="section-inner">
+            <h2>How it works</h2>
+            <p class="section-desc">From invoice to action in four steps.</p>
+            <div class="steps">
+                <div><div class="step-num">1</div><h3>Upload</h3><p>Add an invoice as a PDF or photo — no template required.</p></div>
+                <div><div class="step-num">2</div><h3>Extract</h3><p>The customer, amount and due date are read out automatically.</p></div>
+                <div><div class="step-num">3</div><h3>Predict</h3><p>SmartPay scores how likely the invoice is to be paid late.</p></div>
+                <div><div class="step-num">4</div><h3>Act</h3><p>Chase the risky invoices early, before they ever go overdue.</p></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section cta-band">
+        <div class="section-inner">
+            <h2>Start managing invoices smarter</h2>
+            <p>Create a free account and see which of your invoices need attention first — or read the full source on GitHub.</p>
+            <div class="cta-row" style="margin-top: var(--space-5); display:flex; gap: var(--space-3); flex-wrap: wrap;">
+                <a href="/register" class="btn btn-primary">Get started <i class="ri-arrow-right-line" aria-hidden="true"></i></a>
+                <a href="https://github.com/gufran0007/smartpay" target="_blank" rel="noopener" class="btn btn-secondary"><i class="ri-github-fill" aria-hidden="true"></i> View source</a>
+            </div>
+        </div>
+    </section>
+
+    <footer class="guest-footer">
+        <div class="guest-footer-inner">
+            <span>Smart Pay &middot; Built with FastAPI &amp; Python by Ghufran Aslam</span>
+            <div style="display:flex; gap: var(--space-4);">
+                <a href="https://github.com/gufran0007/smartpay" target="_blank" rel="noopener" aria-label="GitHub"><i class="ri-github-fill" aria-hidden="true"></i></a>
+                <a href="https://www.linkedin.com/in/ghufran-aslama6034b32fd321" target="_blank" rel="noopener" aria-label="LinkedIn"><i class="ri-linkedin-box-fill" aria-hidden="true"></i></a>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

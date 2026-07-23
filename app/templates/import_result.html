@@ -1,60 +1,39 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="light">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Import Complete | Smart Pay</title>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.23/dist/full.min.css" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
-</head>
-<body class="bg-gray-50 min-h-screen">
-    <nav class="bg-white border-b shadow-sm">
-        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <a href="/dashboard" class="flex items-center gap-2 text-gray-600 hover:text-blue-600">
-                <i class="ri-arrow-left-line"></i> Back to Dashboard
-            </a>
-            <h1 class="font-bold text-gray-900">Import Complete</h1>
-            <span></span>
+{% extends "base.html" %}
+
+{% block title %}Import Complete · Smart Pay{% endblock %}
+
+{% block head %}
+<style>
+    .result-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); margin-bottom: var(--space-5); }
+    .result-grid-3 .mini-stat { border-radius: var(--radius-md); padding: var(--space-4); }
+    .result-grid-3 .mini-value { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 700; }
+    .result-grid-3 .mini-label { font-size: var(--text-sm); }
+    @media (max-width: 700px) { .result-grid-3 { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="app-body narrow">
+    <div class="card card-pad" style="text-align:center;">
+        <div style="width:64px; height:64px; border-radius:50%; background: var(--success-tint); color: var(--success); display:flex; align-items:center; justify-content:center; font-size:1.75rem; margin: 0 auto var(--space-4);">
+            <i class="ri-checkbox-circle-line" aria-hidden="true"></i>
         </div>
-    </nav>
+        <h1 style="font-size: var(--text-xl); margin-bottom: var(--space-5);">Import finished</h1>
 
-    <main class="container mx-auto px-6 py-12">
-        <div class="max-w-2xl mx-auto">
-            <div class="bg-white rounded-2xl shadow-sm p-8 text-center">
-                <div class="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="ri-checkbox-circle-line text-4xl text-teal-600"></i>
-                </div>
-                <h1 class="text-2xl font-bold text-gray-900 mb-6">Import finished</h1>
-
-                <div class="grid grid-cols-3 gap-4 mb-6">
-                    <div class="bg-green-50 rounded-xl p-4">
-                        <div class="text-2xl font-bold text-green-700">{{ imported }}</div>
-                        <div class="text-sm text-green-700">New invoices</div>
-                    </div>
-                    <div class="bg-blue-50 rounded-xl p-4">
-                        <div class="text-2xl font-bold text-blue-700">{{ updated }}</div>
-                        <div class="text-sm text-blue-700">Updated</div>
-                    </div>
-                    <div class="bg-red-50 rounded-xl p-4">
-                        <div class="text-2xl font-bold text-red-700">{{ error_count }}</div>
-                        <div class="text-sm text-red-700">Rejected rows</div>
-                    </div>
-                </div>
-
-                {% if has_errors %}
-                <p class="text-gray-600 mb-4">
-                    Some rows couldn't be imported. Download the error report to see exactly why,
-                    fix them in your source file, and re-upload.
-                </p>
-                <a href="/import/{{ import_id }}/errors" class="btn btn-outline gap-2">
-                    <i class="ri-download-line"></i> Download error report
-                </a>
-                {% else %}
-                <p class="text-gray-600">Every row imported cleanly.</p>
-                {% endif %}
-            </div>
+        <div class="result-grid-3">
+            <div class="mini-stat" style="background: var(--success-tint);"><div class="mini-value text-success">{{ imported }}</div><div class="mini-label text-success">New invoices</div></div>
+            <div class="mini-stat" style="background: var(--signal-tint);"><div class="mini-value" style="color: var(--signal);">{{ updated }}</div><div class="mini-label" style="color: var(--signal);">Updated</div></div>
+            <div class="mini-stat" style="background: var(--critical-tint);"><div class="mini-value text-critical">{{ error_count }}</div><div class="mini-label text-critical">Rejected rows</div></div>
         </div>
-    </main>
-</body>
-</html>
+
+        {% if has_errors %}
+        <p class="text-slate" style="margin-bottom: var(--space-4);">
+            Some rows couldn't be imported. Download the error report to see exactly why, fix them in your source file, and re-upload.
+        </p>
+        <a href="/import/{{ import_id }}/errors" class="btn btn-secondary"><i class="ri-download-line" aria-hidden="true"></i> Download error report</a>
+        {% else %}
+        <p class="text-slate">Every row imported cleanly.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

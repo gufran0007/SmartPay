@@ -1,105 +1,67 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="light">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Email Status | Smart Pay</title>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.23/dist/full.min.css" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
-</head>
-<body class="bg-gray-50 min-h-screen">
-    <nav class="bg-gradient-to-r from-blue-600 to-teal-600 text-white shadow-lg">
-        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <a href="/dashboard" class="flex items-center gap-2 hover:opacity-80">
-                <i class="ri-arrow-left-line"></i> Dashboard
-            </a>
-            <h1 class="font-bold">Email Configuration</h1>
-            <a href="/view-data" class="btn btn-sm btn-outline border-white text-white hover:bg-white hover:text-blue-600">
-                <i class="ri-file-list-line"></i> Invoices
-            </a>
+{% extends "base.html" %}
+
+{% block title %}Email Configuration · Smart Pay{% endblock %}
+
+{% block head %}
+<style>
+    .status-card { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-5); border-radius: var(--radius-md); border: 1px solid; margin-bottom: var(--space-5); }
+    .status-card .icon-badge { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex: none; }
+    .info-card { border-radius: var(--radius-md); padding: var(--space-5); margin-bottom: var(--space-5); }
+    .info-card h3 { font-size: var(--text-base); margin-bottom: var(--space-3); }
+    .info-card ol, .info-card ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: var(--text-sm); }
+    .behavior-row { display: flex; align-items: flex-start; gap: var(--space-3); }
+    .behavior-row .num-badge { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: var(--text-xs); font-weight: 700; flex: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="app-body narrow">
+    <div class="card card-pad">
+        <h1 style="font-size: var(--text-xl);"><i class="ri-mail-settings-line" style="color: var(--signal);" aria-hidden="true"></i> Email reminder settings</h1>
+
+        <div class="status-card" style="background: {% if email_configured %}var(--success-tint){% else %}var(--warning-tint){% endif %}; border-color: {% if email_configured %}#c9e6d5{% else %}#f0dba8{% endif %};">
+            <div class="icon-badge" style="background: {% if email_configured %}rgba(46,139,87,0.15){% else %}rgba(154,107,11,0.15){% endif %}; color: {% if email_configured %}var(--success){% else %}var(--warning){% endif %};">
+                <i class="{% if email_configured %}ri-check-line{% else %}ri-error-warning-line{% endif %}" aria-hidden="true"></i>
+            </div>
+            <div>
+                <h3 style="font-size: var(--text-base); margin: 0; color: {% if email_configured %}#1f6b41{% else %}#78530a{% endif %};">
+                    {% if email_configured %}Email configured{% else %}Email not configured{% endif %}
+                </h3>
+                <p style="font-size: var(--text-sm); margin: 0; color: {% if email_configured %}#1f6b41{% else %}#78530a{% endif %};">
+                    {% if email_configured %}Sending from: {{ email_address }}{% else %}Update GMAIL_USER and GMAIL_APP_PASSWORD in main.py{% endif %}
+                </p>
+            </div>
         </div>
-    </nav>
 
-    <main class="container mx-auto px-6 py-8 max-w-2xl">
-        <div class="bg-white rounded-2xl shadow-sm p-8">
-            <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                <i class="ri-mail-settings-line text-blue-600"></i>
-                Email Reminder Settings
-            </h2>
-            
-            <div class="space-y-6">
-                <!-- Status Card -->
-                <div class="{% if email_configured %}bg-green-50 border-green-200{% else %}bg-yellow-50 border-yellow-200{% endif %} rounded-xl p-6 border">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 {% if email_configured %}bg-green-100{% else %}bg-yellow-100{% endif %} rounded-full flex items-center justify-center">
-                            <i class="{% if email_configured %}ri-check-line text-green-600{% else %}ri-error-warning-line text-yellow-600{% endif %} text-2xl"></i>
-                        </div>
-                        <div>
-                            <h3 class="font-bold {% if email_configured %}text-green-800{% else %}text-yellow-800{% endif %}">
-                                {% if email_configured %}Email Configured{% else %}Email Not Configured{% endif %}
-                            </h3>
-                            <p class="text-sm {% if email_configured %}text-green-600{% else %}text-yellow-600{% endif %}">
-                                {% if email_configured %}
-                                    Sending from: {{ email_address }}
-                                {% else %}
-                                    Update GMAIL_USER and GMAIL_APP_PASSWORD in main.py
-                                {% endif %}
-                            </p>
-                        </div>
-                    </div>
+        <div class="info-card" style="background: var(--signal-tint);">
+            <h3 style="color: var(--signal-strong);"><i class="ri-information-line" aria-hidden="true"></i> How to set up Gmail app password</h3>
+            <ol style="color: var(--signal-strong);">
+                <li>Go to your Google Account &rarr; Security</li>
+                <li>Enable 2-Factor Authentication</li>
+                <li>Search for "App Passwords"</li>
+                <li>Select "Mail" and "Other" (name: Smart Pay)</li>
+                <li>Copy the 16-digit password</li>
+                <li>Update GMAIL_APP_PASSWORD in main.py</li>
+            </ol>
+        </div>
+
+        <div class="info-card" style="background: var(--surface-2);">
+            <h3><i class="ri-brain-line" aria-hidden="true"></i> AI-powered email behavior</h3>
+            <div style="display:flex; flex-direction: column; gap: var(--space-3);">
+                <div class="behavior-row">
+                    <span class="num-badge" style="background: var(--critical-tint); color: var(--critical);">1</span>
+                    <div><p style="font-weight:600; margin:0;">High risk (predicted late)</p><p class="text-slate" style="font-size: var(--text-sm); margin:0;">Sends an urgent reminder warning about overdue payment</p></div>
                 </div>
-
-                <!-- Instructions Card -->
-                <div class="bg-blue-50 rounded-xl p-6 border border-blue-200">
-                    <h3 class="font-bold text-blue-800 mb-3 flex items-center gap-2">
-                        <i class="ri-information-line"></i> How to Setup Gmail App Password
-                    </h3>
-                    <ol class="list-decimal list-inside space-y-2 text-sm text-blue-700">
-                        <li>Go to your Google Account → Security</li>
-                        <li>Enable 2-Factor Authentication</li>
-                        <li>Search for "App Passwords"</li>
-                        <li>Select "Mail" and "Other" (name: Smart Pay)</li>
-                        <li>Copy the 16-digit password</li>
-                        <li>Update GMAIL_APP_PASSWORD in main.py</li>
-                    </ol>
-                </div>
-
-                <!-- Email Behavior -->
-                <div class="bg-gray-50 rounded-xl p-6">
-                    <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                        <i class="ri-brain-line"></i> AI-Powered Email Behavior
-                    </h3>
-                    <div class="space-y-3">
-                        <div class="flex items-start gap-3">
-                            <div class="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                                <span class="text-xs font-bold text-red-600">1</span>
-                            </div>
-                            <div>
-                                <p class="font-medium text-gray-800">High Risk (Predicted Late)</p>
-                                <p class="text-sm text-gray-600">Sends URGENT reminder with ⚠️ warning about overdue payment</p>
-                            </div>
-                        </div>
-                        <div class="flex items-start gap-3">
-                            <div class="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                                <span class="text-xs font-bold text-green-600">2</span>
-                            </div>
-                            <div>
-                                <p class="font-medium text-gray-800">Low Risk (Predicted On Time)</p>
-                                <p class="text-sm text-gray-600">Sends friendly 📧 reminder about upcoming due date</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Test Button -->
-                <div class="text-center pt-4">
-                    <a href="/view-data" class="btn btn-primary">
-                        <i class="ri-file-list-line"></i> View Invoices to Test
-                    </a>
+                <div class="behavior-row">
+                    <span class="num-badge" style="background: var(--success-tint); color: var(--success);">2</span>
+                    <div><p style="font-weight:600; margin:0;">Low risk (predicted on time)</p><p class="text-slate" style="font-size: var(--text-sm); margin:0;">Sends a friendly reminder about the upcoming due date</p></div>
                 </div>
             </div>
         </div>
-    </main>
-</body>
-</html>
+
+        <div style="text-align:center;">
+            <a href="/view-data" class="btn btn-primary"><i class="ri-file-list-line" aria-hidden="true"></i> View invoices to test</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

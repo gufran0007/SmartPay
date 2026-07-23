@@ -30,7 +30,7 @@ Smart Pay is a multi-tenant web application that helps businesses predict which 
 | ML | scikit-learn (Random Forest, per-account) |
 | Column mapping | Anthropic API (Claude), behind an interface with a fake for tests |
 | OCR | PyMuPDF + Tesseract |
-| Frontend | Jinja2 + TailwindCSS + DaisyUI |
+| Frontend | Jinja2 + a small hand-rolled design system ("Emerald Ledger" tokens + component CSS, no UI framework) |
 | Auth | bcrypt + Starlette SessionMiddleware |
 | Testing | Pytest |
 | Container | Docker |
@@ -68,8 +68,11 @@ smartpay/
 │   │   ├── database.py              # SQLAlchemy models, migrations, DB setup
 │   │   └── payment_predictor_account_<id>.pkl  # Per-account trained models (gitignored)
 │   │
-│   ├── templates/                   # Jinja2 HTML templates
-│   ├── static/                      # CSS files
+│   ├── templates/                   # Jinja2 HTML templates — base.html is the authenticated app shell; landing.html is the public homepage
+│   ├── static/
+│   │   ├── css/tokens.css           # Design tokens ("Emerald Ledger": colour, type, spacing, radius, shadow)
+│   │   ├── css/components.css       # Component partials built on the tokens (buttons, forms, tables, cards, states)
+│   │   └── favicon.svg
 │   ├── data/                        # (empty; no bundled dataset)
 │   ├── tests/                       # Pytest suite
 │   └── uploads/account_<id>/        # Per-account uploaded files

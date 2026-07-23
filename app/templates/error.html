@@ -1,43 +1,44 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ error_code | default(500) }} - Smart Pay</title>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.23/dist/full.min.css" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+    <link href="/static/css/tokens.css" rel="stylesheet">
+    <link href="/static/css/components.css" rel="stylesheet">
+    <style>
+        body { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .error-page { text-align: center; padding: var(--space-6); max-width: 480px; }
+        .error-page .state-icon { font-size: 4rem; margin-bottom: var(--space-5); color: var(--border-strong); }
+        .error-page h1 { font-size: var(--text-3xl); margin-bottom: var(--space-2); }
+        .error-page h2 { font-size: var(--text-xl); color: var(--ink-soft); margin-bottom: var(--space-3); font-weight: 600; }
+        .error-page p.desc { color: var(--slate); margin-bottom: var(--space-6); }
+        .error-page .actions { display: flex; gap: var(--space-3); justify-content: center; flex-wrap: wrap; margin-bottom: var(--space-7); }
+        .error-page .back-brand { font-family: var(--font-display); font-weight: 700; font-size: var(--text-lg); color: var(--slate); text-decoration: none; }
+    </style>
 </head>
-<body class="bg-gray-50 min-h-screen flex items-center justify-center">
-    <div class="text-center px-6">
-        <div class="mb-8">
+<body>
+    <div class="error-page">
+        <div class="state-icon">
             {% if error_code == 404 %}
-            <i class="ri-file-search-line text-8xl text-gray-300"></i>
+            <i class="ri-file-search-line" aria-hidden="true"></i>
             {% else %}
-            <i class="ri-error-warning-line text-8xl text-red-300"></i>
+            <i class="ri-error-warning-line" style="color: var(--critical);" aria-hidden="true"></i>
             {% endif %}
         </div>
-        
-        <h1 class="text-6xl font-bold text-gray-900 mb-4">{{ error_code | default(500) }}</h1>
-        <h2 class="text-2xl font-semibold text-gray-700 mb-4">{{ message | default("Something went wrong") }}</h2>
-        <p class="text-gray-500 mb-8 max-w-md mx-auto">
-            {{ description | default("An unexpected error occurred. Please try again later.") }}
-        </p>
-        
-        <div class="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="/dashboard" class="btn btn-primary gap-2">
-                <i class="ri-home-line"></i> Go to Dashboard
-            </a>
-            <button onclick="history.back()" class="btn btn-outline gap-2">
-                <i class="ri-arrow-left-line"></i> Go Back
-            </button>
+
+        <h1>{{ error_code | default(500) }}</h1>
+        <h2>{{ message | default("Something went wrong") }}</h2>
+        <p class="desc">{{ description | default("An unexpected error occurred. Please try again later.") }}</p>
+
+        <div class="actions">
+            <a href="/dashboard" class="btn btn-primary"><i class="ri-home-line" aria-hidden="true"></i> Go to dashboard</a>
+            <button type="button" onclick="history.back()" class="btn btn-secondary"><i class="ri-arrow-left-line" aria-hidden="true"></i> Go back</button>
         </div>
-        
-        <div class="mt-12">
-            <a href="/dashboard" class="text-2xl font-bold text-gray-400 hover:text-blue-600 transition">
-                <i class="ri-file-text-line"></i> Smart Pay
-            </a>
-        </div>
+
+        <a href="/dashboard" class="back-brand"><i class="ri-file-text-line" aria-hidden="true"></i> Smart Pay</a>
     </div>
 </body>
 </html>

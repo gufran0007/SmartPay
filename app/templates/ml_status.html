@@ -1,105 +1,60 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="light">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ML Model Status | Smart Pay</title>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.23/dist/full.min.css" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
-</head>
-<body class="bg-gray-50 min-h-screen">
-    <!-- Navigation -->
-    <nav class="bg-white border-b shadow-sm">
-        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <a href="/dashboard" class="flex items-center gap-2 text-gray-600 hover:text-blue-600">
-                <i class="ri-arrow-left-line"></i> Back to Dashboard
-            </a>
-            <h1 class="font-bold text-gray-900">ML Model Status</h1>
-            <a href="/view-data" class="btn btn-sm btn-outline gap-1">
-                <i class="ri-table-line"></i> View Invoices
-            </a>
+{% extends "base.html" %}
+
+{% block title %}ML Model Status · Smart Pay{% endblock %}
+
+{% block head %}
+<style>
+    .mini-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-4); margin-bottom: var(--space-5); }
+    .mini-stat { background: var(--surface-2); border-radius: var(--radius-md); padding: var(--space-4); text-align: center; }
+    .mini-stat .mini-value { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 700; }
+    .mini-stat .mini-label { font-size: var(--text-sm); color: var(--slate); margin-top: 4px; }
+    .info-card { background: var(--surface-2); border-radius: var(--radius-md); padding: var(--space-5); margin-bottom: var(--space-5); }
+    .info-card h3 { font-size: var(--text-base); margin-bottom: var(--space-3); }
+    .info-card ul { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: var(--text-sm); color: var(--ink-soft); }
+    @media (max-width: 700px) { .mini-grid-2 { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="app-body narrow">
+    <div class="card card-pad">
+        <div style="text-align:center; margin-bottom: var(--space-5);">
+            {% if success %}
+            <div style="width:64px; height:64px; border-radius:50%; background: var(--success-tint); color: var(--success); display:flex; align-items:center; justify-content:center; font-size:1.75rem; margin: 0 auto var(--space-3);"><i class="ri-brain-line" aria-hidden="true"></i></div>
+            <h1 style="font-size: var(--text-xl);">Model training complete</h1>
+            {% else %}
+            <div style="width:64px; height:64px; border-radius:50%; background: var(--warning-tint); color: var(--warning); display:flex; align-items:center; justify-content:center; font-size:1.75rem; margin: 0 auto var(--space-3);"><i class="ri-brain-line" aria-hidden="true"></i></div>
+            <h1 style="font-size: var(--text-xl);">Training status</h1>
+            {% endif %}
         </div>
-    </nav>
 
-    <main class="container mx-auto px-6 py-12">
-        <div class="max-w-2xl mx-auto">
-            <div class="bg-white rounded-2xl shadow-sm p-8">
-                <div class="text-center mb-8">
-                    {% if success %}
-                    <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <i class="ri-brain-line text-4xl text-green-600"></i>
-                    </div>
-                    <h1 class="text-2xl font-bold text-gray-900">Model Training Complete</h1>
-                    {% else %}
-                    <div class="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <i class="ri-brain-line text-4xl text-amber-600"></i>
-                    </div>
-                    <h1 class="text-2xl font-bold text-gray-900">Training Status</h1>
-                    {% endif %}
-                </div>
-
-                <div class="{% if success %}bg-green-50 border-green-200{% else %}bg-amber-50 border-amber-200{% endif %} border rounded-xl p-4 mb-6">
-                    <p class="{% if success %}text-green-700{% else %}text-amber-700{% endif %}">
-                        {{ message }}
-                    </p>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4 mb-6">
-                    <div class="bg-blue-50 rounded-xl p-4 text-center">
-                        <div class="text-3xl font-bold text-blue-600">{{ count }}</div>
-                        <div class="text-sm text-gray-600">Paid invoices on file</div>
-                    </div>
-                    <div class="bg-purple-50 rounded-xl p-4 text-center">
-                        <div class="text-lg font-bold text-purple-600">
-                            {% if mode == 'ml' %}Machine learning{% else %}Payment-terms heuristic{% endif %}
-                        </div>
-                        <div class="text-sm text-gray-600">Prediction mode</div>
-                    </div>
-                </div>
-
-                <div class="bg-gray-50 rounded-xl p-4 mb-6">
-                    <h3 class="font-semibold text-gray-900 mb-2">What this means:</h3>
-                    <ul class="space-y-2 text-sm text-gray-600">
-                        {% if success %}
-                        <li class="flex items-start gap-2">
-                            <i class="ri-check-line text-green-600 mt-0.5"></i>
-                            Predictions for this account now use a machine-learning model trained
-                            only on its own paid invoices
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <i class="ri-check-line text-green-600 mt-0.5"></i>
-                            Every prediction shows its held-out accuracy so you know how much to trust it
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <i class="ri-check-line text-green-600 mt-0.5"></i>
-                            Importing more paid invoices and retraining will keep improving it
-                        </li>
-                        {% else %}
-                        <li class="flex items-start gap-2">
-                            <i class="ri-information-line text-amber-600 mt-0.5"></i>
-                            Import invoice history that includes paid dates, so payments can be
-                            labeled on-time or late
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <i class="ri-information-line text-amber-600 mt-0.5"></i>
-                            Predictions will keep working via the payment-terms heuristic until then —
-                            clearly marked as a heuristic, not ML
-                        </li>
-                        {% endif %}
-                    </ul>
-                </div>
-
-                <div class="flex gap-3">
-                    <a href="/dashboard" class="btn btn-primary flex-1 gap-1">
-                        <i class="ri-dashboard-line"></i> Dashboard
-                    </a>
-                    <a href="/import" class="btn btn-outline flex-1 gap-1">
-                        <i class="ri-upload-cloud-line"></i> Import Invoice History
-                    </a>
-                </div>
-            </div>
+        <div class="alert {% if success %}alert-success{% else %}alert-warning{% endif %}" style="margin-bottom: var(--space-5);">
+            {{ message }}
         </div>
-    </main>
-</body>
-</html>
+
+        <div class="mini-grid-2">
+            <div class="mini-stat"><div class="mini-value" style="color: var(--signal);">{{ count }}</div><div class="mini-label">Paid invoices on file</div></div>
+            <div class="mini-stat"><div class="mini-value">{% if mode == 'ml' %}Machine learning{% else %}Payment-terms heuristic{% endif %}</div><div class="mini-label">Prediction mode</div></div>
+        </div>
+
+        <div class="info-card">
+            <h3>What this means:</h3>
+            <ul>
+                {% if success %}
+                <li><i class="ri-check-line text-success" aria-hidden="true"></i> Predictions for this account now use a machine-learning model trained only on its own paid invoices</li>
+                <li><i class="ri-check-line text-success" aria-hidden="true"></i> Every prediction shows its held-out accuracy so you know how much to trust it</li>
+                <li><i class="ri-check-line text-success" aria-hidden="true"></i> Importing more paid invoices and retraining will keep improving it</li>
+                {% else %}
+                <li><i class="ri-information-line" style="color: var(--warning);" aria-hidden="true"></i> Import invoice history that includes paid dates, so payments can be labeled on-time or late</li>
+                <li><i class="ri-information-line" style="color: var(--warning);" aria-hidden="true"></i> Predictions will keep working via the payment-terms heuristic until then — clearly marked as a heuristic, not ML</li>
+                {% endif %}
+            </ul>
+        </div>
+
+        <div style="display:flex; gap: var(--space-3);">
+            <a href="/dashboard" class="btn btn-primary" style="flex:1;"><i class="ri-dashboard-line" aria-hidden="true"></i> Dashboard</a>
+            <a href="/import" class="btn btn-secondary" style="flex:1;"><i class="ri-upload-cloud-line" aria-hidden="true"></i> Import invoice history</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

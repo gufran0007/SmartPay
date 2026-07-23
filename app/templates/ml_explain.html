@@ -1,130 +1,92 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="light">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prediction Explained | Smart Pay</title>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.23/dist/full.min.css" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
-</head>
-<body class="bg-gray-50 min-h-screen">
-    <nav class="bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg">
-        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <a href="/view-invoice/{{ invoice.id }}" class="flex items-center gap-2 hover:opacity-80">
-                <i class="ri-arrow-left-line"></i> Back to Invoice
-            </a>
-            <h1 class="font-bold">Prediction Explained</h1>
-            <a href="/ml/analytics" class="btn btn-sm btn-outline border-white text-white">Analytics</a>
-        </div>
-    </nav>
+{% extends "base.html" %}
 
-    <main class="container mx-auto px-6 py-8 max-w-3xl">
-        <!-- Mode banner -->
-        <div class="rounded-xl p-4 mb-6 border {% if mode == 'ml' %}bg-green-50 border-green-200{% else %}bg-amber-50 border-amber-200{% endif %}">
-            {% if mode == 'ml' %}
-            <div class="flex items-center gap-2 text-green-800 font-semibold">
-                <i class="ri-brain-line"></i> Produced by a machine-learning model
-            </div>
-            <p class="text-sm text-green-700 mt-1">
-                Trained on {{ invoices_seen }} of this account's own paid invoices.
-                {% if held_out_accuracy is not none %}
-                Held-out accuracy: {{ (held_out_accuracy * 100)|round(1) }}%.
-                {% else %}
-                Held-out accuracy isn't available for this training run.
-                {% endif %}
-            </p>
-            {% else %}
-            <div class="flex items-center gap-2 text-amber-800 font-semibold">
-                <i class="ri-scales-3-line"></i> Produced by the payment-terms heuristic, not ML
-            </div>
-            <p class="text-sm text-amber-700 mt-1">
-                This account has {{ invoices_seen }} paid invoice(s) on file — not yet enough to
-                train a trustworthy model, so this is a simple, explainable rule based on payment
-                terms and amount, not a learned prediction.
-            </p>
-            {% endif %}
-        </div>
+{% block title %}Prediction Explained · Smart Pay{% endblock %}
 
-        <!-- Invoice Summary -->
-        <div class="bg-white rounded-xl shadow p-6 mb-6">
-            <h2 class="text-xl font-bold mb-4">Invoice #{{ invoice.invoice_number or invoice.id }}</h2>
-            <div class="grid grid-cols-2 gap-4 text-sm">
-                <div><span class="text-gray-500">Customer:</span> <strong>{{ invoice.customer_name }}</strong></div>
-                <div><span class="text-gray-500">Amount:</span> <strong>{{ invoice.amount }} {{ invoice.currency }}</strong></div>
-                <div><span class="text-gray-500">Due Date:</span> <strong>{{ invoice.due_date }}</strong></div>
-                <div>
-                    <span class="text-gray-500">Prediction:</span>
-                    {% if features and features.predicted_label == 1 %}
-                    <span class="badge badge-error">High Risk</span>
-                    {% else %}
-                    <span class="badge badge-success">Low Risk</span>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
+{% block head %}
+<style>
+    .summary-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-3); font-size: var(--text-sm); }
+    .factor-box { padding: var(--space-3); background: var(--surface-2); border-radius: var(--radius-md); margin-bottom: var(--space-2); }
+    .factor-box .factor-title { font-weight: 600; }
+    .factor-box .factor-detail { color: var(--slate); font-size: var(--text-sm); }
+    .history-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); text-align: center; }
+    .history-grid-3 .mini-stat { background: var(--surface-2); border-radius: var(--radius-md); padding: var(--space-4); }
+    .history-grid-3 .mini-value { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 700; }
+    .history-grid-3 .mini-label { font-size: var(--text-xs); color: var(--slate); }
+    .big-ring { --p: 0; position: relative; width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+    .big-ring::before { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: var(--surface); }
+    .big-ring > span { position: relative; z-index: 1; font-family: var(--font-display); font-weight: 700; font-size: var(--text-lg); }
+</style>
+{% endblock %}
 
-        <!-- Risk Score -->
-        {% if features and features.predicted_probability is not none %}
-        <div class="bg-white rounded-xl shadow p-6 mb-6">
-            <h2 class="text-xl font-bold mb-4">Risk Score</h2>
-            <div class="flex items-center gap-4">
-                <div class="radial-progress"
-                     style="--value:{{ (features.predicted_probability * 100)|int }}; --size:8rem; {% if features.predicted_probability > 0.7 %}color: hsl(var(--er));{% elif features.predicted_probability > 0.4 %}color: hsl(var(--wa));{% else %}color: hsl(var(--su));{% endif %}">
-                    {{ (features.predicted_probability * 100)|int }}%
-                </div>
-                <div>
-                    <div class="text-2xl font-bold {% if features.predicted_label == 1 %}text-red-600{% else %}text-green-600{% endif %}">
-                        {% if features.predicted_label == 1 %}High Risk{% else %}Low Risk{% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
+{% block content %}
+<div class="app-body narrow">
+    <div class="alert {% if mode == 'ml' %}alert-success{% else %}alert-warning{% endif %}" style="display:block; margin-bottom: var(--space-5);">
+        {% if mode == 'ml' %}
+        <div style="display:flex; align-items:center; gap: 8px; font-weight:700;"><i class="ri-brain-line" aria-hidden="true"></i> Produced by a machine-learning model</div>
+        <p style="font-size: var(--text-sm); margin: 4px 0 0;">
+            Trained on {{ invoices_seen }} of this account's own paid invoices.
+            {% if held_out_accuracy is not none %}Held-out accuracy: {{ (held_out_accuracy * 100)|round(1) }}%.{% else %}Held-out accuracy isn't available for this training run.{% endif %}
+        </p>
+        {% else %}
+        <div style="display:flex; align-items:center; gap: 8px; font-weight:700;"><i class="ri-scales-3-line" aria-hidden="true"></i> Produced by the payment-terms heuristic, not ML</div>
+        <p style="font-size: var(--text-sm); margin: 4px 0 0;">
+            This account has {{ invoices_seen }} paid invoice(s) on file — not yet enough to train a trustworthy model, so this is a simple, explainable rule based on payment terms and amount, not a learned prediction.
+        </p>
         {% endif %}
+    </div>
 
-        <!-- Why This Prediction -->
-        <div class="bg-white rounded-xl shadow p-6 mb-6">
-            <h2 class="text-xl font-bold mb-4">Why This Prediction?</h2>
-            <div class="space-y-3">
-                {% for title, detail in factors %}
-                <div class="p-3 bg-gray-50 rounded-lg">
-                    <div class="font-medium">{{ title }}</div>
-                    <div class="text-sm text-gray-500">{{ detail }}</div>
-                </div>
-                {% endfor %}
+    <div class="card panel">
+        <h2 style="font-size: var(--text-lg);">Invoice #{{ invoice.invoice_number or invoice.id }}</h2>
+        <div class="summary-grid-2">
+            <div><span class="text-slate">Customer:</span> <strong>{{ invoice.customer_name }}</strong></div>
+            <div><span class="text-slate">Amount:</span> <strong>{{ invoice.amount }} {{ invoice.currency }}</strong></div>
+            <div><span class="text-slate">Due date:</span> <strong>{{ invoice.due_date }}</strong></div>
+            <div>
+                <span class="text-slate">Prediction:</span>
+                {% if features and features.predicted_label == 1 %}<span class="pill pill-critical">High risk</span>
+                {% else %}<span class="pill pill-success">Low risk</span>{% endif %}
             </div>
         </div>
+    </div>
 
-        <!-- Customer History -->
-        {% if customer_summary and customer_summary.paid_count > 0 %}
-        <div class="bg-white rounded-xl shadow p-6 mb-6">
-            <h2 class="text-xl font-bold mb-4">Customer Payment History</h2>
-            <div class="grid grid-cols-3 gap-4 text-center">
-                <div class="bg-blue-50 rounded-lg p-4">
-                    <div class="text-2xl font-bold text-blue-600">{{ customer_summary.paid_count }}</div>
-                    <div class="text-xs text-gray-500">Paid Invoices</div>
-                </div>
-                <div class="bg-green-50 rounded-lg p-4">
-                    <div class="text-2xl font-bold text-green-600">{{ customer_summary.on_time_count }}</div>
-                    <div class="text-xs text-gray-500">Paid On Time</div>
-                </div>
-                <div class="bg-red-50 rounded-lg p-4">
-                    <div class="text-2xl font-bold text-red-600">{{ customer_summary.late_count }}</div>
-                    <div class="text-xs text-gray-500">Paid Late</div>
-                </div>
+    {% if features and features.predicted_probability is not none %}
+    <div class="card panel">
+        <h2 style="font-size: var(--text-lg);">Risk score</h2>
+        <div style="display:flex; align-items:center; gap: var(--space-4);">
+            <div class="big-ring" style="--p: {{ (features.predicted_probability * 100)|int }}; background: conic-gradient({% if features.predicted_probability > 0.7 %}var(--critical){% elif features.predicted_probability > 0.4 %}var(--warning){% else %}var(--success){% endif %} calc(var(--p) * 1%), var(--surface-2) 0);">
+                <span>{{ (features.predicted_probability * 100)|int }}%</span>
+            </div>
+            <div style="font-size: var(--text-xl); font-weight:700; color: {% if features.predicted_label == 1 %}var(--critical){% else %}var(--success){% endif %};">
+                {% if features.predicted_label == 1 %}High risk{% else %}Low risk{% endif %}
             </div>
         </div>
-        {% endif %}
+    </div>
+    {% endif %}
 
-        <!-- Actions -->
-        <div class="flex gap-3">
-            <a href="/view-invoice/{{ invoice.id }}" class="btn btn-primary flex-1">
-                <i class="ri-file-text-line"></i> View Invoice
-            </a>
-            <a href="/send-reminder/{{ invoice.id }}" class="btn btn-outline flex-1">
-                <i class="ri-mail-line"></i> Send Reminder
-            </a>
+    <div class="card panel">
+        <h2 style="font-size: var(--text-lg);">Why this prediction?</h2>
+        {% for title, detail in factors %}
+        <div class="factor-box">
+            <div class="factor-title">{{ title }}</div>
+            <div class="factor-detail">{{ detail }}</div>
         </div>
-    </main>
-</body>
-</html>
+        {% endfor %}
+    </div>
+
+    {% if customer_summary and customer_summary.paid_count > 0 %}
+    <div class="card panel">
+        <h2 style="font-size: var(--text-lg);">Customer payment history</h2>
+        <div class="history-grid-3">
+            <div class="mini-stat"><div class="mini-value" style="color: var(--signal);">{{ customer_summary.paid_count }}</div><div class="mini-label">Paid invoices</div></div>
+            <div class="mini-stat"><div class="mini-value text-success">{{ customer_summary.on_time_count }}</div><div class="mini-label">Paid on time</div></div>
+            <div class="mini-stat"><div class="mini-value text-critical">{{ customer_summary.late_count }}</div><div class="mini-label">Paid late</div></div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div style="display:flex; gap: var(--space-3);">
+        <a href="/view-invoice/{{ invoice.id }}" class="btn btn-primary" style="flex:1;"><i class="ri-file-text-line" aria-hidden="true"></i> View invoice</a>
+        <a href="/send-reminder/{{ invoice.id }}" class="btn btn-secondary" style="flex:1;"><i class="ri-mail-line" aria-hidden="true"></i> Send reminder</a>
+    </div>
+</div>
+{% endblock %}
