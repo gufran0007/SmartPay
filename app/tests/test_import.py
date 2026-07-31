@@ -16,8 +16,9 @@ from main import app
 from app.controllers import import_controller
 from app.services.llm_mapping import (
     FakeColumnMapper, MappingProposal, FieldMapping, MappingProviderError,
-    CANONICAL_FIELDS, AnthropicColumnMapper, HeuristicColumnMapper,
+    CANONICAL_FIELDS, AnthropicColumnMapper, GeminiColumnMapper, HeuristicColumnMapper,
 )
+from app.services.invoice_import import validate_mapped_columns
 from app.services.date_parsing import infer_day_first, parse_canonical_date
 from app.services.invoice_import import parse_canonical_amount
 
@@ -442,23 +443,74 @@ class TestImportFlow:
 #  every /import upload into a bare 500 instead of a normal error redirect.
 # ════════════════════════════════════════════════════════
 
-class TestMappingProviderFallback:
-    def test_key_present_uses_anthropic_mapper(self, monkeypatch):
-        monkeypatch.setenv("ANTHROPIC_API_KEY", "fake-key-for-construction-only")
-        provider = import_controller._get_mapping_provider()
-        assert isinstance(provider, AnthropicColumnMapper)
+class TestMappingProviderSelection:
+    """_select_mapping_provider_name / _get_mapping_provider: which of
+    GeminiColumnMapper, AnthropicColumnMapper, or the no-key
+    HeuristicColumnMapper fallback gets used, and why. Every test clears
+    both key env vars first so behavior doesn't depend on whatever happens
+    to be ambient in the environment the suite runs in."""
 
-    def test_key_absent_uses_heuristic_mapper(self, monkeypatch):
+    def _clear_provider_env(self, monkeypatch):
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-        provider = import_controller._get_mapping_provider()
-        assert isinstance(provider, HeuristicColumnMapper)
+        monkeypatch.delenv("MAPPING_PROVIDER", raising=False)
+
+    def test_neither_key_uses_heuristic_mapper(self, monkeypatch):
+        self._clear_provider_env(monkeypatch)
+        assert import_controller._select_mapping_provider_name() == "manual"
+        assert isinstance(import_controller._get_mapping_provider(), HeuristicColumnMapper)
+
+    def test_anthropic_key_only_uses_anthropic_mapper(self, monkeypatch):
+        self._clear_provider_env(monkeypatch)
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "fake-key-for-construction-only")
+        assert import_controller._select_mapping_provider_name() == "anthropic"
+        assert isinstance(import_controller._get_mapping_provider(), AnthropicColumnMapper)
+
+    def test_gemini_key_only_uses_gemini_mapper(self, monkeypatch):
+        pytest.importorskip("google.generativeai")
+        self._clear_provider_env(monkeypatch)
+        monkeypatch.setenv("GEMINI_API_KEY", "fake-key-for-construction-only")
+        assert import_controller._select_mapping_provider_name() == "gemini"
+        assert isinstance(import_controller._get_mapping_provider(), GeminiColumnMapper)
+
+    def test_both_keys_present_prefers_gemini(self, monkeypatch):
+        self._clear_provider_env(monkeypatch)
+        monkeypatch.setenv("GEMINI_API_KEY", "fake-gemini-key")
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "fake-anthropic-key")
+        assert import_controller._select_mapping_provider_name() == "gemini"
+
+    def test_mapping_provider_env_forces_anthropic_even_with_gemini_key_present(self, monkeypatch):
+        self._clear_provider_env(monkeypatch)
+        monkeypatch.setenv("GEMINI_API_KEY", "fake-gemini-key")
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "fake-anthropic-key")
+        monkeypatch.setenv("MAPPING_PROVIDER", "anthropic")
+        assert import_controller._select_mapping_provider_name() == "anthropic"
+
+    def test_mapping_provider_manual_forces_heuristic_even_with_keys_present(self, monkeypatch):
+        self._clear_provider_env(monkeypatch)
+        monkeypatch.setenv("GEMINI_API_KEY", "fake-gemini-key")
+        monkeypatch.setenv("MAPPING_PROVIDER", "manual")
+        assert import_controller._select_mapping_provider_name() == "manual"
+
+    def test_mapping_provider_forces_unavailable_provider_falls_through_instead_of_raising(self, monkeypatch):
+        """MAPPING_PROVIDER=gemini with no GEMINI_API_KEY must degrade, not
+        crash -- same "never raise" contract as no config at all."""
+        self._clear_provider_env(monkeypatch)
+        monkeypatch.setenv("MAPPING_PROVIDER", "gemini")
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "fake-anthropic-key")
+        assert import_controller._select_mapping_provider_name() == "anthropic"
+
+        self._clear_provider_env(monkeypatch)
+        monkeypatch.setenv("MAPPING_PROVIDER", "gemini")
+        assert import_controller._select_mapping_provider_name() == "manual"
+        assert isinstance(import_controller._get_mapping_provider(), HeuristicColumnMapper)
 
     def test_import_completes_end_to_end_with_no_api_key(self, app_client, monkeypatch):
         """Deliberately does NOT use the `use_mapper` override fixture --
         this has to exercise the real dependency, not a substitute, to
         prove the whole upload -> review -> confirm -> train flow survives
         a missing key rather than 500ing."""
-        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        self._clear_provider_env(monkeypatch)
         client = app_client()
         register_and_login(client, "nokey@example.com")
 
@@ -491,3 +543,126 @@ class TestMappingProviderFallback:
         page = client.get("/view-data", follow_redirects=False)
         assert "INV-900" in page.text
         assert "Delta LLC" in page.text
+
+
+# ════════════════════════════════════════════════════════
+#  Pre-import mapping validation (deterministic, no LLM call)
+#
+#  apply_mapping_and_import already tolerates a handful of bad individual
+#  rows -- that's intentional (see its docstring). This is a different,
+#  coarser check that runs BEFORE any row is imported: is the mapping
+#  itself obviously wrong (e.g. a text column mapped to 'amount')? It only
+#  fires when every sampled, non-null value in a typed column fails to
+#  parse, so it never fights with the row-level tolerance above.
+# ════════════════════════════════════════════════════════
+
+class TestMappedColumnValidation:
+    def test_numeric_column_all_garbage_rejected(self):
+        df = pd.DataFrame({"amt": ["abc", "xyz", "not a number"]})
+        errors = validate_mapped_columns(df, {"amount": "amt"})
+        assert len(errors) == 1
+        assert "amt" in errors[0]
+        assert "amount" in errors[0]
+        assert "non-numeric" in errors[0]
+
+    def test_numeric_column_mostly_valid_is_not_rejected(self):
+        # A few bad rows among good data is exactly what row-level import
+        # validation already handles by skipping just those rows -- must
+        # NOT be treated as "wrong column".
+        df = pd.DataFrame({"amt": ["100.00", "200.00", "not a number", "300.00"]})
+        assert validate_mapped_columns(df, {"amount": "amt"}) == []
+
+    def test_date_column_all_garbage_rejected(self):
+        df = pd.DataFrame({"d": ["not a date", "also not", "nope"]})
+        errors = validate_mapped_columns(df, {"invoice_date": "d"})
+        assert len(errors) == 1
+        assert "d" in errors[0]
+        assert "invoice_date" in errors[0]
+
+    def test_date_column_valid_is_not_rejected(self):
+        df = pd.DataFrame({"d": ["2024-01-15", "2024-02-20"]})
+        assert validate_mapped_columns(df, {"invoice_date": "d"}) == []
+
+    def test_unmapped_field_is_skipped(self):
+        df = pd.DataFrame({"amt": ["100.00"]})
+        assert validate_mapped_columns(df, {"amount": None}) == []
+
+    def test_column_missing_from_dataframe_is_skipped(self):
+        df = pd.DataFrame({"amt": ["100.00"]})
+        assert validate_mapped_columns(df, {"amount": "does_not_exist"}) == []
+
+    def test_all_null_sample_is_skipped(self):
+        df = pd.DataFrame({"amt": [None, None]})
+        assert validate_mapped_columns(df, {"amount": "amt"}) == []
+
+    def test_multiple_bad_columns_all_reported(self):
+        df = pd.DataFrame({"amt": ["abc"], "d": ["nope"]})
+        errors = validate_mapped_columns(df, {"amount": "amt", "invoice_date": "d"})
+        assert len(errors) == 2
+
+    def test_respects_sample_size(self):
+        # 25 bad values followed by 25 good ones; sampling only the first
+        # 20 (the head) means the good tail never gets seen -- documents
+        # that this checks a SAMPLE, not the whole column, matching what
+        # the confirm route actually calls with the default sample_size.
+        df = pd.DataFrame({"amt": ["bad"] * 25 + ["100.00"] * 25})
+        errors = validate_mapped_columns(df, {"amount": "amt"}, sample_size=20)
+        assert len(errors) == 1
+
+
+class TestPreImportColumnValidationHTTP:
+    def test_confirm_rejects_wrong_column_mapping_and_imports_nothing(self, app_client, use_mapper):
+        client = app_client()
+        register_and_login(client, "wrongcol@example.com")
+
+        mapping = {
+            "invoice_id": "invoice_number", "customer_name": "Customer",
+            "invoice_date": "Bill Date", "due_date": "Payment Due",
+            "amount": "Customer",  # deliberately wrong: a name column, not an amount column
+            "currency": "Curr",
+        }
+        use_mapper(FakeColumnMapper(response=mapping_proposal(mapping)))
+
+        csv_bytes = (
+            b"invoice_number,Customer,Bill Date,Payment Due,Curr\n"
+            b"INV-BADMAP,Acme Corp,2024-01-15,2024-02-15,EUR\n"
+        )
+        resp = upload(client, csv_bytes)
+        import_id = import_id_from_redirect(resp)
+
+        confirm = client.post(f"/import/{import_id}/confirm", data=confirm_form(mapping), follow_redirects=False)
+        assert confirm.status_code == 303
+        assert confirm.headers["location"].startswith(f"/import/{import_id}/review?error=")
+        assert "non-numeric" in confirm.headers["location"]
+
+        review = client.get(confirm.headers["location"], follow_redirects=False)
+        assert review.status_code == 200
+        assert "non-numeric" in review.text
+        assert "Customer" in review.text  # names the offending column
+
+        data = client.get("/view-data", follow_redirects=False)
+        assert "INV-BADMAP" not in data.text  # nothing was imported
+
+    def test_confirm_still_succeeds_with_a_correct_mapping(self, app_client, use_mapper):
+        client = app_client()
+        register_and_login(client, "rightcol@example.com")
+
+        mapping = {
+            "invoice_id": "invoice_number", "customer_name": "Customer",
+            "invoice_date": "Bill Date", "due_date": "Payment Due",
+            "amount": "Total", "currency": "Curr",
+        }
+        use_mapper(FakeColumnMapper(response=mapping_proposal(mapping)))
+
+        csv_bytes = (
+            b"invoice_number,Customer,Bill Date,Payment Due,Total,Curr\n"
+            b"INV-GOODMAP,Acme Corp,2024-01-15,2024-02-15,1500.00,EUR\n"
+        )
+        resp = upload(client, csv_bytes)
+        import_id = import_id_from_redirect(resp)
+
+        confirm = client.post(f"/import/{import_id}/confirm", data=confirm_form(mapping), follow_redirects=False)
+        assert confirm.status_code == 200, confirm.text
+
+        data = client.get("/view-data", follow_redirects=False)
+        assert "INV-GOODMAP" in data.text

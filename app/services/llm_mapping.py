@@ -104,8 +104,65 @@ def _mapping_schema() -> dict:
     }
 
 
+def _build_mapping_prompt(headers: list[str], sample_rows: list[dict]) -> str:
+    return (
+        "Map these spreadsheet columns to the canonical invoice fields.\n\n"
+        f"Canonical fields: {', '.join(CANONICAL_FIELDS)}\n\n"
+        f"Source columns: {json.dumps(headers)}\n\n"
+        f"Sample rows (up to {MAX_SAMPLE_ROWS}):\n{json.dumps(sample_rows[:MAX_SAMPLE_ROWS], default=str)}\n\n"
+        "For every canonical field, propose the single best-matching source "
+        "column, or null if nothing in the source columns matches. Give a "
+        "confidence between 0 and 1 reflecting how sure you are.\n\n"
+        'Respond with ONLY strict JSON of the shape {"mappings": '
+        '[{"canonical_field": "...", "source_column": "..." or null, "confidence": 0.0}, ...]}'
+        " — one entry per canonical field, no commentary, no markdown fences."
+    )
+
+
+def _build_repair_prompt(original_prompt: str, bad_output: str, error: Exception) -> str:
+    return (
+        f"{original_prompt}\n\n"
+        "Your previous response could not be used:\n"
+        f"{bad_output}\n\n"
+        f"Reason: {error}\n\n"
+        "Return ONLY corrected strict JSON matching the shape above — no "
+        "commentary, no markdown fences."
+    )
+
+
+def _parse_mapping_payload(text: str) -> MappingProposal:
+    """Parse and validate a provider's strict-JSON mapping output.
+
+    Raises ValueError (never a provider-specific exception) with a
+    human-readable reason on any structural problem, so callers can
+    uniformly decide whether to repair-retry or give up — shared by every
+    ColumnMappingProvider that talks to an LLM.
+    """
+    try:
+        data = json.loads(text)
+        mappings = [
+            FieldMapping(
+                canonical_field=m["canonical_field"],
+                source_column=m["source_column"],
+                confidence=float(m["confidence"]),
+            )
+            for m in data["mappings"]
+        ]
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
+        raise ValueError(str(e)) from e
+
+    unknown = {m.canonical_field for m in mappings} - set(CANONICAL_FIELDS)
+    if unknown:
+        raise ValueError(f"unknown canonical_field(s): {sorted(unknown)}")
+
+    return MappingProposal(mappings=mappings)
+
+
 class AnthropicColumnMapper(ColumnMappingProvider):
-    """Real implementation. Never used in the test suite — see FakeColumnMapper."""
+    """Real implementation using Anthropic's API. Never used in the test
+    suite — see FakeColumnMapper."""
+
+    MODEL = "claude-opus-4-8"
 
     def __init__(self, api_key: Optional[str] = None, timeout: float = 20.0):
         import anthropic  # imported lazily so the suite never needs the package importable at collection time
@@ -116,20 +173,11 @@ class AnthropicColumnMapper(ColumnMappingProvider):
         self._anthropic = anthropic
         self._client = anthropic.Anthropic(api_key=key, timeout=timeout)
 
-    def propose_mapping(self, headers: list[str], sample_rows: list[dict]) -> MappingProposal:
+    def _request(self, prompt: str) -> str:
         anthropic = self._anthropic
-        prompt = (
-            "Map these spreadsheet columns to the canonical invoice fields.\n\n"
-            f"Canonical fields: {', '.join(CANONICAL_FIELDS)}\n\n"
-            f"Source columns: {json.dumps(headers)}\n\n"
-            f"Sample rows (up to {MAX_SAMPLE_ROWS}):\n{json.dumps(sample_rows[:MAX_SAMPLE_ROWS], default=str)}\n\n"
-            "For every canonical field, propose the single best-matching source "
-            "column, or null if nothing in the source columns matches. Give a "
-            "confidence between 0 and 1 reflecting how sure you are."
-        )
         try:
             response = self._client.messages.create(
-                model="claude-opus-4-8",
+                model=self.MODEL,
                 max_tokens=2048,
                 output_config={"format": {"type": "json_schema", "schema": _mapping_schema()}},
                 messages=[{"role": "user", "content": prompt}],
@@ -145,21 +193,87 @@ class AnthropicColumnMapper(ColumnMappingProvider):
         text = next((b.text for b in response.content if b.type == "text"), None)
         if not text:
             raise MappingProviderError("LLM returned no text content")
+        return text
+
+    def propose_mapping(self, headers: list[str], sample_rows: list[dict]) -> MappingProposal:
+        prompt = _build_mapping_prompt(headers, sample_rows)
+        text = self._request(prompt)
+        try:
+            return _parse_mapping_payload(text)
+        except ValueError as first_error:
+            # One-shot repair: give the model its own bad output plus the
+            # specific parse error and ask it to correct itself, once.
+            repair_text = self._request(_build_repair_prompt(prompt, text, first_error))
+            try:
+                return _parse_mapping_payload(repair_text)
+            except ValueError as second_error:
+                raise MappingProviderError(
+                    f"LLM returned a malformed mapping after one repair attempt: {second_error}"
+                ) from second_error
+
+
+class GeminiColumnMapper(ColumnMappingProvider):
+    """Real implementation using Google's Gemini API. Same interface, same
+    strict-JSON + one-shot-repair pattern as AnthropicColumnMapper — see
+    app.controllers.import_controller._get_mapping_provider for how the two
+    (and the no-key HeuristicColumnMapper fallback) are selected.
+
+    Note: genai.configure() sets process-wide client config rather than a
+    per-instance one the way anthropic.Anthropic(...) does — harmless here
+    since this app only ever uses one server-wide GEMINI_API_KEY, never a
+    per-tenant one.
+    """
+
+    MODEL = "gemini-2.5-flash"  # verify against your actual API access; trivial to change
+
+    def __init__(self, api_key: Optional[str] = None, timeout: float = 20.0):
+        import google.generativeai as genai  # imported lazily so the suite never needs the package importable at collection time
+
+        key = api_key or os.environ.get("GEMINI_API_KEY")
+        if not key:
+            raise MappingProviderError("GEMINI_API_KEY is not set")
+        genai.configure(api_key=key)
+        self._genai = genai
+        self._timeout = timeout
+        self._model = genai.GenerativeModel(
+            self.MODEL,
+            generation_config=genai.types.GenerationConfig(response_mime_type="application/json"),
+        )
+
+    def _request(self, prompt: str) -> str:
+        from google.api_core.exceptions import GoogleAPIError
 
         try:
-            data = json.loads(text)
-            mappings = [
-                FieldMapping(
-                    canonical_field=m["canonical_field"],
-                    source_column=m["source_column"],
-                    confidence=float(m["confidence"]),
-                )
-                for m in data["mappings"]
-            ]
-        except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
-            raise MappingProviderError(f"LLM returned a malformed mapping: {e}") from e
+            response = self._model.generate_content(prompt, request_options={"timeout": self._timeout})
+        except GoogleAPIError as e:
+            raise MappingProviderError(f"Gemini request failed: {e}") from e
 
-        return MappingProposal(mappings=mappings)
+        try:
+            text = response.text
+        except ValueError as e:
+            # google-generativeai's .text raises (rather than returning
+            # None/empty) when the response was blocked or has no parts --
+            # this is the Gemini equivalent of Anthropic's stop_reason
+            # "refusal".
+            raise MappingProviderError(f"Gemini declined to propose a mapping for this file: {e}") from e
+
+        if not text:
+            raise MappingProviderError("Gemini returned no text content")
+        return text
+
+    def propose_mapping(self, headers: list[str], sample_rows: list[dict]) -> MappingProposal:
+        prompt = _build_mapping_prompt(headers, sample_rows)
+        text = self._request(prompt)
+        try:
+            return _parse_mapping_payload(text)
+        except ValueError as first_error:
+            repair_text = self._request(_build_repair_prompt(prompt, text, first_error))
+            try:
+                return _parse_mapping_payload(repair_text)
+            except ValueError as second_error:
+                raise MappingProviderError(
+                    f"Gemini returned a malformed mapping after one repair attempt: {second_error}"
+                ) from second_error
 
 
 class HeuristicColumnMapper(ColumnMappingProvider):
@@ -169,9 +283,10 @@ class HeuristicColumnMapper(ColumnMappingProvider):
     point the user confirms or corrects on the review screen like any other
     proposal, never applied silently.
 
-    This is what /import falls back to when ANTHROPIC_API_KEY isn't set
-    (see app.controllers.import_controller._get_mapping_provider), so the
-    import flow works end to end without an LLM configured at all -- the
+    This is what /import falls back to when neither GEMINI_API_KEY nor
+    ANTHROPIC_API_KEY is set (see
+    app.controllers.import_controller._get_mapping_provider), so the
+    import flow works end to end without any LLM configured at all -- the
     user just does more of the mapping by hand."""
 
     GUESSES = {

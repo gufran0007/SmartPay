@@ -119,6 +119,72 @@ def parse_canonical_amount(raw) -> Optional[float]:
     return -value if negative else value
 
 
+NUMERIC_CANONICAL_FIELDS = ("amount",)
+VALIDATION_SAMPLE_SIZE = 20
+
+
+def validate_mapped_columns(df: pd.DataFrame, mapping: dict, sample_size: int = VALIDATION_SAMPLE_SIZE) -> list:
+    """Pre-import sanity check on the CONFIRMED mapping itself — runs once,
+    before any row is imported, on every path (AI-proposed, heuristic, or
+    fully hand-edited by the user), since a wrong column can come from any
+    of them.
+
+    This is deliberately not the same thing as apply_mapping_and_import's
+    per-row validation: that one tolerates a handful of bad individual rows
+    (a messy date here, a typo there) and imports everything else, which is
+    the right behavior for real-world data. This one is a coarser, earlier
+    check for "the wrong column got mapped entirely" -- e.g. customer_name
+    accidentally mapped to amount -- which per-row validation would only
+    ever report as N individual row failures, never as one clear "this
+    column doesn't look right" message. So it only fires when EVERY
+    sampled, non-null value in a typed column fails to parse: a handful of
+    bad values among otherwise-good data is exactly what the row-level
+    import already handles, and re-rejecting the whole mapping for that
+    would contradict this module's "one bad row never blocks the good
+    ones" design.
+
+    Pure and deterministic -- no LLM call, no I/O -- so it runs identically
+    regardless of which ColumnMappingProvider produced (or didn't produce)
+    the mapping. Returns a list of human-readable error strings, one per
+    bad column; empty if nothing looks wrong.
+    """
+    errors = []
+
+    for canonical in NUMERIC_CANONICAL_FIELDS:
+        col = mapping.get(canonical)
+        if not col or col not in df.columns:
+            continue
+        sample = [v for v in df[col].head(sample_size).tolist() if _clean_str(v) is not None]
+        if not sample:
+            continue
+        bad = [v for v in sample if parse_canonical_amount(v) is None]
+        if bad and len(bad) == len(sample):
+            shown = ", ".join(repr(_clean_str(v)) for v in bad[:5])
+            errors.append(f"Column '{col}' mapped to '{canonical}' contains non-numeric values: {shown}")
+
+    for canonical in DATE_FIELDS:
+        col = mapping.get(canonical)
+        if not col or col not in df.columns:
+            continue
+        sample = [v for v in df[col].head(sample_size).tolist() if _clean_str(v) is not None]
+        if not sample:
+            continue
+        day_first = infer_day_first(sample)
+        bad = [v for v in sample if parse_canonical_date(v, day_first) is None]
+        if bad and len(bad) == len(sample):
+            shown = ", ".join(repr(_clean_str(v)) for v in bad[:5])
+            errors.append(f"Column '{col}' mapped to '{canonical}' contains unparseable dates: {shown}")
+
+    return errors
+
+
+def validate_mapping_sample(file_path: Path, mapping: dict, sample_size: int = VALIDATION_SAMPLE_SIZE) -> list:
+    """File-reading wrapper around validate_mapped_columns for use from the
+    confirm route. See that function for what's actually being checked."""
+    df = _read_dataframe(file_path)
+    return validate_mapped_columns(df, mapping, sample_size)
+
+
 def apply_mapping_and_import(db: Session, account_id: int, file_path: Path, mapping: dict) -> ImportResult:
     """`mapping` is {canonical_field: source_column_name_or_None}, as
     confirmed by the user on the review screen."""

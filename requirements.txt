@@ -17,5 +17,6 @@ joblib
 python-dotenv
 openpyxl
 anthropic
+google-generativeai
 pytest
 httpx<0.28

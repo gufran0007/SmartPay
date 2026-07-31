@@ -9,6 +9,7 @@ imported until the user confirms the mapping on the review screen.
 import json
 import os
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Request, UploadFile, File
 from fastapi.responses import RedirectResponse, Response
@@ -19,11 +20,11 @@ from app.services.auth import require_account, CurrentUser
 from app.services.paths import get_account_upload_dir
 from app.services.llm_mapping import (
     CANONICAL_FIELDS, REQUIRED_CANONICAL_FIELDS,
-    AnthropicColumnMapper, HeuristicColumnMapper, MappingProviderError,
+    AnthropicColumnMapper, GeminiColumnMapper, HeuristicColumnMapper, MappingProviderError,
 )
 from app.services.invoice_import import (
-    read_headers_and_sample, apply_mapping_and_import, error_report_csv,
-    UnsupportedFileError,
+    read_headers_and_sample, apply_mapping_and_import, validate_mapping_sample,
+    error_report_csv, UnsupportedFileError,
 )
 from app.services.ml_service import MLService
 from app.services.error_logging import log_exception, logger
@@ -31,10 +32,67 @@ from app.services.error_logging import log_exception, logger
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
-if os.environ.get("ANTHROPIC_API_KEY"):
-    logger.info("SMARTPAY_STARTUP column_mapping=llm provider=AnthropicColumnMapper")
+# name -> (env var to check for a key, provider class). Order matters: this
+# is also the auto-detect preference order when MAPPING_PROVIDER isn't set
+# (or is set to something whose key isn't actually present).
+_MAPPING_PROVIDERS = [
+    ("gemini", "GEMINI_API_KEY", GeminiColumnMapper),
+    ("anthropic", "ANTHROPIC_API_KEY", AnthropicColumnMapper),
+]
+
+
+def _select_mapping_provider_name() -> str:
+    """Which provider _get_mapping_provider will actually construct.
+
+    MAPPING_PROVIDER=gemini|anthropic|manual can force a choice, but only
+    ever wins if that provider's key is actually configured -- forcing a
+    provider with no key falls through to auto-detect rather than raising,
+    same as leaving MAPPING_PROVIDER unset. Auto-detect prefers Gemini, then
+    Anthropic, then the no-key heuristic fallback, which never needs a key
+    and therefore never fails to be selectable.
+    """
+    forced = os.environ.get("MAPPING_PROVIDER", "").strip().lower()
+    available = {name: bool(os.environ.get(env_var)) for name, env_var, _ in _MAPPING_PROVIDERS}
+
+    if forced == "manual":
+        return "manual"
+    if forced in available and available[forced]:
+        return forced
+
+    for name, _, _ in _MAPPING_PROVIDERS:
+        if available[name]:
+            return name
+    return "manual"
+
+
+def _get_mapping_provider():
+    """Swappable for tests via app.dependency_overrides.
+
+    Never raises: falls back to the deterministic HeuristicColumnMapper
+    when no configured LLM key is available, so /import works end to end
+    with no key at all -- the user just does more of the column mapping by
+    hand on the review screen. AnthropicColumnMapper/GeminiColumnMapper
+    (both make network calls) are only ever constructed when their key is
+    actually present. This used to construct AnthropicColumnMapper()
+    unconditionally, which raised MappingProviderError from right here
+    whenever ANTHROPIC_API_KEY was missing -- during dependency resolution,
+    before the route body's own try/except ever got a chance to catch it --
+    so a missing key reached the browser as a bare 500 instead of the
+    "mapping failed" redirect other LLM failures get.
+    """
+    name = _select_mapping_provider_name()
+    if name == "gemini":
+        return GeminiColumnMapper()
+    if name == "anthropic":
+        return AnthropicColumnMapper()
+    return HeuristicColumnMapper()
+
+
+_active_mapping_provider = _select_mapping_provider_name()
+if _active_mapping_provider == "manual":
+    logger.info("SMARTPAY_STARTUP column_mapping=manual reason=no_llm_key_configured")
 else:
-    logger.info("SMARTPAY_STARTUP column_mapping=heuristic reason=ANTHROPIC_API_KEY_not_set provider=HeuristicColumnMapper")
+    logger.info("SMARTPAY_STARTUP column_mapping=%s", _active_mapping_provider)
 
 FIELD_LABELS = {
     "invoice_id": "Invoice ID",
@@ -47,25 +105,6 @@ FIELD_LABELS = {
     "currency": "Currency",
     "payment_terms": "Payment terms",
 }
-
-
-def _get_mapping_provider():
-    """Swappable for tests via app.dependency_overrides.
-
-    Falls back to the deterministic HeuristicColumnMapper when no Anthropic
-    API key is configured, so /import works end to end without one -- the
-    user just does more of the column mapping by hand on the review screen
-    instead of the LLM proposing it. AnthropicColumnMapper (which makes
-    network calls) is only ever constructed when a key is actually present;
-    it previously raised MappingProviderError from right here whenever the
-    key was missing, and that happened during dependency resolution -- before
-    the route body's own try/except ever got a chance to catch it -- so it
-    reached the browser as a bare 500 instead of the "mapping failed"
-    redirect other LLM failures get.
-    """
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        return AnthropicColumnMapper()
-    return HeuristicColumnMapper()
 
 
 def render(request: Request, template: str, status_code: int = 200, **context):
@@ -169,6 +208,17 @@ async def import_confirm(request: Request, import_id: int, current_user: Current
         if missing:
             return RedirectResponse(
                 f"/import/{import_id}/review?error=Required+fields+need+a+column:+{','.join(missing)}",
+                status_code=303,
+            )
+
+        # Deterministic, non-LLM sanity check on the mapping itself, before
+        # anything is imported -- runs the same way regardless of whether
+        # the mapping came from an LLM, the heuristic fallback, or the
+        # user's own manual edits on the review screen.
+        column_errors = validate_mapping_sample(Path(pending.file_path), mapping)
+        if column_errors:
+            return RedirectResponse(
+                f"/import/{import_id}/review?error={quote(' | '.join(column_errors)[:400])}",
                 status_code=303,
             )
 
