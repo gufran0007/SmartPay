@@ -25,6 +25,7 @@ from app.services.invoice_import import (
     UnsupportedFileError,
 )
 from app.services.ml_service import MLService
+from app.services.error_logging import log_exception
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -75,12 +76,14 @@ async def import_upload(
     try:
         headers, sample_rows = read_headers_and_sample(file_path)
     except UnsupportedFileError as e:
+        log_exception(request, where="import_upload.read_headers", filename=file.filename)
         return RedirectResponse(f"/import?error={str(e)[:100]}", status_code=303)
 
     try:
         proposal = mapping_provider.propose_mapping(headers, sample_rows)
         proposed_mapping = proposal.as_dict()
     except MappingProviderError as e:
+        log_exception(request, where="import_upload.propose_mapping", filename=file.filename)
         return RedirectResponse(f"/import?error=Mapping+failed:+{str(e)[:100]}", status_code=303)
 
     db = SessionLocal()

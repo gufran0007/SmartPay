@@ -13,6 +13,7 @@ from app.models.database import SessionLocal, Invoice, InvoiceFeatures
 from app.services.auth import require_account, CurrentUser
 from app.services.csv_service import CSVService
 from app.services.paths import get_account_upload_dir
+from app.services.error_logging import log_exception
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -390,7 +391,7 @@ async def upload_invoice(request: Request, file: UploadFile = File(...), current
 
         return RedirectResponse(f"/view-invoice/{invoice.id}?uploaded=1", status_code=303)
     except Exception as e:
-        print(f"Upload error: {e}")
+        log_exception(request, where="upload_invoice", filename=file.filename)
         return templates.TemplateResponse("upload.html", {"request": request, "current_user": current_user, "error": str(e)})
     finally:
         db.close()

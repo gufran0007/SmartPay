@@ -13,6 +13,7 @@ from email.mime.text import MIMEText
 from app.controllers import auth_controller, invoice_controller, prediction_controller, csv_controller, import_controller
 from app.models.database import SessionLocal, Invoice
 from app.services.auth import require_account, RequireLoginRedirect, CurrentUser, AccountScopeMiddleware
+from app.services.error_logging import log_exception
 
 app = FastAPI(title="Smart Pay Invoice System", version="2.0.0")
 from starlette.middleware.sessions import SessionMiddleware
@@ -100,4 +101,5 @@ async def not_found(request: Request, exc):
 
 @app.exception_handler(500)
 async def server_error(request: Request, exc):
+    log_exception(request, where="unhandled", exc_type=type(exc).__name__)
     return templates.TemplateResponse("error.html", {"request": request, "error_code": 500, "message": "Server Error", "description": "Something went wrong."}, status_code=500)

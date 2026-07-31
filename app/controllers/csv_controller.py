@@ -11,6 +11,7 @@ from app.models.database import SessionLocal, Invoice
 from app.services.auth import require_account, CurrentUser
 from app.services.csv_service import CSVService
 from app.services.paths import get_account_upload_dir
+from app.services.error_logging import log_exception
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -69,7 +70,7 @@ async def upload_csv(request: Request, file: UploadFile = File(...), current_use
         return RedirectResponse("/dashboard?success=CSV+data+loaded+successfully", status_code=303)
 
     except Exception as e:
-        print(f"CSV upload error: {e}")
+        log_exception(request, where="upload_csv", filename=file.filename)
         return RedirectResponse(f"/upload-csv?error=Failed+to+process+CSV:+{str(e)[:50]}", status_code=303)
 
 
