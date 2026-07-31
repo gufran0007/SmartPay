@@ -4,6 +4,18 @@
 
 {% block content %}
 <div class="app-body wide">
+    {% if request.query_params.get('success') %}
+    <div class="alert alert-success" style="margin-bottom: var(--space-5);">
+        <i class="ri-check-line alert-icon" aria-hidden="true"></i>
+        <span>
+            {{ request.query_params.get('success') }}
+            {% if request.query_params.get('import_id') %}
+            &mdash; <a href="/import/{{ request.query_params.get('import_id') }}/errors">download error report</a>
+            {% endif %}
+        </span>
+    </div>
+    {% endif %}
+
     <div class="toolbar" style="display:flex; flex-wrap:wrap; justify-content: space-between; align-items:center; gap: var(--space-4); margin-bottom: var(--space-5);">
         <div>
             <h1 style="font-size: var(--text-xl);">Customer database</h1>

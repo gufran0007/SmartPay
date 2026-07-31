@@ -232,23 +232,37 @@ class TestImportFlow:
         page = client.get("/view-data", follow_redirects=False)
         assert "Gamma Inc" in page.text
 
-    def test_malformed_llm_output_shows_error(self, app_client, use_mapper):
+    def test_malformed_llm_output_falls_back_to_manual_review(self, app_client, use_mapper, monkeypatch):
+        # An AI provider must be "active" (a real key configured) for the
+        # AI-attempt-then-fallback path to engage at all -- see
+        # TestMappingProviderSelection. The actual call is still the fake,
+        # via use_mapper.
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "fake-key-for-provider-selection-only")
         client = app_client()
         register_and_login(client, "d@example.com")
         use_mapper(FakeColumnMapper(error=MappingProviderError("LLM returned a malformed mapping: missing key")))
 
         resp = upload(client, b"a,b\n1,2\n")
         assert resp.status_code == 303
-        assert resp.headers["location"].startswith("/import?error=")
+        assert "/review" in resp.headers["location"]
 
-    def test_llm_timeout_shows_error(self, app_client, use_mapper):
+        review = client.get(resp.headers["location"], follow_redirects=False)
+        assert review.status_code == 200
+        assert "AI mapping failed" in review.text
+
+    def test_llm_timeout_falls_back_to_manual_review(self, app_client, use_mapper, monkeypatch):
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "fake-key-for-provider-selection-only")
         client = app_client()
         register_and_login(client, "e@example.com")
         use_mapper(FakeColumnMapper(error=MappingProviderError("LLM request timed out: timeout")))
 
         resp = upload(client, b"a,b\n1,2\n")
         assert resp.status_code == 303
-        assert resp.headers["location"].startswith("/import?error=")
+        assert "/review" in resp.headers["location"]
+
+        review = client.get(resp.headers["location"], follow_redirects=False)
+        assert review.status_code == 200
+        assert "AI mapping failed" in review.text
 
     def test_empty_file_rejected(self, app_client, use_mapper):
         client = app_client()
@@ -666,3 +680,155 @@ class TestPreImportColumnValidationHTTP:
 
         data = client.get("/view-data", follow_redirects=False)
         assert "INV-GOODMAP" in data.text
+
+
+# ════════════════════════════════════════════════════════
+#  Auto-import happy path: an active AI provider with a valid, validated
+#  mapping skips the manual review step entirely. Manual review is the
+#  fallback -- no provider configured, the AI call failed, or its proposal
+#  didn't pass validate_mapping_sample -- never the default.
+# ════════════════════════════════════════════════════════
+
+class TestAutoImportHappyPath:
+    def _activate_ai(self, monkeypatch):
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "fake-key-for-provider-selection-only")
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        monkeypatch.delenv("MAPPING_PROVIDER", raising=False)
+
+    def test_valid_ai_mapping_imports_immediately_no_manual_step(self, app_client, use_mapper, monkeypatch):
+        self._activate_ai(monkeypatch)
+        client = app_client()
+        register_and_login(client, "auto1@example.com")
+
+        mapping = {
+            "invoice_id": "invoice_number", "customer_name": "Customer",
+            "invoice_date": "Bill Date", "due_date": "Payment Due",
+            "amount": "Total", "currency": "Curr",
+        }
+        use_mapper(FakeColumnMapper(response=mapping_proposal(mapping)))
+
+        csv_bytes = (
+            b"invoice_number,Customer,Bill Date,Payment Due,Total,Curr\n"
+            b"INV-AUTO,Acme Corp,2024-01-15,2024-02-15,1500.00,EUR\n"
+        )
+        resp = upload(client, csv_bytes)
+        assert resp.status_code == 303, resp.text
+        # Straight to /customers -- never /import/{id}/review.
+        assert resp.headers["location"].startswith("/customers?success=")
+        assert "/review" not in resp.headers["location"]
+
+        customers_page = client.get(resp.headers["location"], follow_redirects=False)
+        assert customers_page.status_code == 200
+        assert "Imported 1 invoice" in customers_page.text
+
+        data = client.get("/view-data", follow_redirects=False)
+        assert "INV-AUTO" in data.text
+        assert "Acme Corp" in data.text
+
+    def test_ai_mapping_missing_required_field_falls_back_to_review(self, app_client, use_mapper, monkeypatch):
+        self._activate_ai(monkeypatch)
+        client = app_client()
+        register_and_login(client, "auto2@example.com")
+
+        # No source column for 'amount' -- required, so this can't auto-import.
+        mapping = {
+            "invoice_id": "invoice_number", "customer_name": "Customer",
+            "invoice_date": "Bill Date", "due_date": "Payment Due",
+            "currency": "Curr",
+        }
+        use_mapper(FakeColumnMapper(response=mapping_proposal(mapping)))
+
+        csv_bytes = b"invoice_number,Customer,Bill Date,Payment Due,Curr\nINV-1,Acme,2024-01-15,2024-02-15,EUR\n"
+        resp = upload(client, csv_bytes)
+        assert resp.status_code == 303
+        assert "/review" in resp.headers["location"]
+        assert "error=" in resp.headers["location"]
+
+        review = client.get(resp.headers["location"], follow_redirects=False)
+        assert review.status_code == 200
+        assert "Amount" in review.text  # names the unmapped required field
+
+        data = client.get("/view-data", follow_redirects=False)
+        assert "INV-1" not in data.text  # nothing imported
+
+    def test_ai_mapping_failing_column_validation_falls_back_to_review(self, app_client, use_mapper, monkeypatch):
+        self._activate_ai(monkeypatch)
+        client = app_client()
+        register_and_login(client, "auto3@example.com")
+
+        mapping = {
+            "invoice_id": "invoice_number", "customer_name": "Customer",
+            "invoice_date": "Bill Date", "due_date": "Payment Due",
+            "amount": "Customer",  # wrong: a name column, not an amount column
+            "currency": "Curr",
+        }
+        use_mapper(FakeColumnMapper(response=mapping_proposal(mapping)))
+
+        csv_bytes = b"invoice_number,Customer,Bill Date,Payment Due,Curr\nINV-2,Acme Corp,2024-01-15,2024-02-15,EUR\n"
+        resp = upload(client, csv_bytes)
+        assert resp.status_code == 303
+        assert "/review" in resp.headers["location"]
+        assert "non-numeric" in resp.headers["location"]
+
+        data = client.get("/view-data", follow_redirects=False)
+        assert "INV-2" not in data.text
+
+    def test_partial_row_errors_still_auto_imports_with_error_report_linked(self, app_client, use_mapper, monkeypatch):
+        self._activate_ai(monkeypatch)
+        client = app_client()
+        register_and_login(client, "auto4@example.com")
+
+        mapping = {
+            "invoice_id": "invoice_number", "customer_name": "Customer",
+            "invoice_date": "Bill Date", "due_date": "Payment Due",
+            "amount": "Total", "currency": "Curr",
+        }
+        use_mapper(FakeColumnMapper(response=mapping_proposal(mapping)))
+
+        # Column-level validation passes (most amounts are fine); one row's
+        # date is bad, which is exactly the kind of row-level noise
+        # apply_mapping_and_import is supposed to skip and report, not the
+        # column-validation gate's concern.
+        csv_bytes = (
+            b"invoice_number,Customer,Bill Date,Payment Due,Total,Curr\n"
+            b"INV-OK,Acme Corp,2024-01-15,2024-02-15,1500.00,EUR\n"
+            b"INV-BADROW,Beta Ltd,not-a-date,2024-02-20,900.00,EUR\n"
+        )
+        resp = upload(client, csv_bytes)
+        assert resp.status_code == 303
+        assert resp.headers["location"].startswith("/customers?success=")
+        assert "import_id=" in resp.headers["location"]
+
+        customers_page = client.get(resp.headers["location"], follow_redirects=False)
+        assert customers_page.status_code == 200
+        assert "Imported 1 invoice" in customers_page.text
+        assert "download error report" in customers_page.text
+
+        data = client.get("/view-data", follow_redirects=False)
+        assert "INV-OK" in data.text
+        assert "INV-BADROW" not in data.text
+
+    def test_manual_mode_unaffected_when_no_provider_configured(self, app_client, use_mapper, monkeypatch):
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("MAPPING_PROVIDER", raising=False)
+        client = app_client()
+        register_and_login(client, "auto5@example.com")
+
+        mapping = {
+            "invoice_id": "invoice_number", "customer_name": "Customer",
+            "invoice_date": "Bill Date", "due_date": "Payment Due",
+            "amount": "Total", "currency": "Curr",
+        }
+        use_mapper(FakeColumnMapper(response=mapping_proposal(mapping)))
+
+        csv_bytes = (
+            b"invoice_number,Customer,Bill Date,Payment Due,Total,Curr\n"
+            b"INV-MANUAL,Acme Corp,2024-01-15,2024-02-15,1500.00,EUR\n"
+        )
+        resp = upload(client, csv_bytes)
+        assert resp.status_code == 303
+        assert "/review" in resp.headers["location"]  # still stops for manual confirmation
+
+        data = client.get("/view-data", follow_redirects=False)
+        assert "INV-MANUAL" not in data.text  # not imported until confirmed

@@ -1,10 +1,18 @@
 """
-Invoice history import: upload -> LLM-proposed column mapping -> user
-confirms/corrects -> deterministic validated import.
+Invoice history import: upload -> column mapping -> deterministic validated
+import.
+
+When an AI mapping provider is configured (Gemini or Anthropic) and it
+proposes a mapping that has every required field and passes
+validate_mapping_sample, upload imports immediately -- no manual step in
+the happy path. Manual review (import_review.html, confirmed via
+import_confirm) is the fallback: no AI provider configured, the AI call
+failed, or its proposal didn't pass validation. Either way, nothing is
+EVER imported off of an unvalidated mapping, and the deterministic
+validation runs identically regardless of which path produced the mapping.
 
 The LLM only ever sees headers + a sample of rows and only ever proposes a
-mapping; it never touches row import or any calculation. Nothing is
-imported until the user confirms the mapping on the review screen.
+mapping; it never touches row import or any calculation.
 """
 import json
 import os
@@ -111,6 +119,17 @@ def render(request: Request, template: str, status_code: int = 200, **context):
     return templates.TemplateResponse(template, {"request": request, **context}, status_code=status_code)
 
 
+def _write_error_report_if_any(account_id: int, import_id: int, result) -> None:
+    if not result.errors:
+        return
+    account_dir = get_account_upload_dir(account_id)
+    (account_dir / f"import_errors_{import_id}.csv").write_text(error_report_csv(result.errors), encoding="utf-8")
+
+
+def _mapping_dict(proposal) -> dict:
+    return {m.canonical_field: m.source_column for m in proposal.mappings}
+
+
 @router.get("/import")
 def import_upload_page(request: Request, current_user: CurrentUser = Depends(require_account)):
     return render(request, "import_upload.html", current_user=current_user)
@@ -138,12 +157,36 @@ async def import_upload(
         log_exception(request, where="import_upload.read_headers", filename=file.filename)
         return RedirectResponse(f"/import?error={str(e)[:100]}", status_code=303)
 
-    try:
-        proposal = mapping_provider.propose_mapping(headers, sample_rows)
-        proposed_mapping = proposal.as_dict()
-    except MappingProviderError as e:
-        log_exception(request, where="import_upload.propose_mapping", filename=file.filename)
-        return RedirectResponse(f"/import?error=Mapping+failed:+{str(e)[:100]}", status_code=303)
+    # "AI active" is a property of configuration (is a real key present?),
+    # not of the injected mapping_provider object -- so tests can override
+    # the provider with a fake while still controlling this via env vars,
+    # and production always agrees with what _get_mapping_provider actually
+    # constructed from the same env state.
+    ai_active = _select_mapping_provider_name() != "manual"
+    ai_failed = False
+    validation_errors: list = []
+
+    if ai_active:
+        try:
+            proposal = mapping_provider.propose_mapping(headers, sample_rows)
+        except MappingProviderError:
+            # Falls back to the heuristic's guess rather than bouncing the
+            # user back to re-upload -- we already have the file and the
+            # headers, no reason to make them start over.
+            log_exception(request, where="import_upload.propose_mapping", filename=file.filename)
+            ai_failed = True
+            proposal = HeuristicColumnMapper().propose_mapping(headers, sample_rows)
+        else:
+            mapping = _mapping_dict(proposal)
+            missing = [f for f in REQUIRED_CANONICAL_FIELDS if not mapping.get(f)]
+            if missing:
+                validation_errors = [f"Required field '{FIELD_LABELS[f]}' has no confident column match" for f in missing]
+            else:
+                validation_errors = validate_mapping_sample(file_path, mapping)
+    else:
+        proposal = mapping_provider.propose_mapping(headers, sample_rows)  # HeuristicColumnMapper never raises
+
+    proposed_mapping = proposal.as_dict()
 
     db = SessionLocal()
     try:
@@ -159,7 +202,37 @@ async def import_upload(
         db.add(pending)
         db.commit()
         db.refresh(pending)
-        return RedirectResponse(f"/import/{pending.id}/review", status_code=303)
+
+        if ai_active and not ai_failed and not validation_errors:
+            # Happy path: the AI mapped it, the mapping passed the same
+            # deterministic check the manual/confirm path uses -- import
+            # immediately, no manual step.
+            mapping = _mapping_dict(proposal)
+            result = apply_mapping_and_import(db, current_user.account_id, file_path, mapping)
+            pending.status = "confirmed"
+            db.commit()
+            MLService(current_user.account_id).train(db)
+            _write_error_report_if_any(current_user.account_id, pending.id, result)
+
+            summary = f"Imported {result.imported} invoice(s)"
+            if result.updated:
+                summary += f", updated {result.updated}"
+            redirect_url = f"/customers?success={quote(summary)}"
+            if result.errors:
+                redirect_url += f"&import_id={pending.id}"
+            return RedirectResponse(redirect_url, status_code=303)
+
+        # Manual review: no AI provider configured, the AI call failed, or
+        # its proposal didn't pass validation -- the review screen shows
+        # exactly why, pre-filled with whatever mapping we do have (the
+        # AI's, if only column validation was the problem; the heuristic's
+        # guess otherwise) so the user corrects rather than starts blank.
+        review_url = f"/import/{pending.id}/review"
+        if validation_errors:
+            review_url += f"?error={quote(' | '.join(validation_errors)[:400])}"
+        elif ai_failed:
+            review_url += f"?error={quote('AI mapping failed -- please map the columns below')}"
+        return RedirectResponse(review_url, status_code=303)
     finally:
         db.close()
 
@@ -229,12 +302,7 @@ async def import_confirm(request: Request, import_id: int, current_user: Current
         # Retrain immediately so new paid invoices are reflected without a
         # separate manual step -- see Stage 3 (per-tenant prediction).
         MLService(current_user.account_id).train(db)
-
-        error_report_path = None
-        if result.errors:
-            account_dir = get_account_upload_dir(current_user.account_id)
-            error_report_path = account_dir / f"import_errors_{import_id}.csv"
-            error_report_path.write_text(error_report_csv(result.errors), encoding="utf-8")
+        _write_error_report_if_any(current_user.account_id, import_id, result)
 
         return render(
             request, "import_result.html", current_user=current_user,
