@@ -162,10 +162,47 @@ class AnthropicColumnMapper(ColumnMappingProvider):
         return MappingProposal(mappings=mappings)
 
 
+class HeuristicColumnMapper(ColumnMappingProvider):
+    """Deterministic, no-network fallback: case-insensitive/substring
+    matching against a fixed list of likely header spellings per canonical
+    field. Not an LLM and not meant to be as good as one -- just a starting
+    point the user confirms or corrects on the review screen like any other
+    proposal, never applied silently.
+
+    This is what /import falls back to when ANTHROPIC_API_KEY isn't set
+    (see app.controllers.import_controller._get_mapping_provider), so the
+    import flow works end to end without an LLM configured at all -- the
+    user just does more of the mapping by hand."""
+
+    GUESSES = {
+        "invoice_id": ["invoice_id", "invoice id", "invoice number", "invoice_number", "invoice#"],
+        "customer_id": ["customer_id", "customer id"],
+        "customer_name": ["customer_name", "customer name", "customer", "client"],
+        "invoice_date": ["invoice_date", "invoice date", "date"],
+        "due_date": ["due_date", "due date"],
+        "paid_date": ["paid_date", "paid date", "payment date"],
+        "amount": ["amount", "total", "invoice amount"],
+        "currency": ["currency"],
+        "payment_terms": ["payment_terms", "payment terms", "terms"],
+    }
+
+    def propose_mapping(self, headers: list[str], sample_rows: list[dict]) -> MappingProposal:
+        lowered = {h.lower(): h for h in headers}
+        mappings = []
+        for canonical, candidates in self.GUESSES.items():
+            match = next((lowered[c] for c in candidates if c in lowered), None)
+            mappings.append(FieldMapping(
+                canonical_field=canonical,
+                source_column=match,
+                confidence=0.9 if match else 0.0,
+            ))
+        return MappingProposal(mappings=mappings)
+
+
 class FakeColumnMapper(ColumnMappingProvider):
     """Test double. Either returns a fixed MappingProposal, raises a fixed
     error (to simulate a timeout or malformed output), or — if neither is
-    given — makes a naive case-insensitive/substring guess so tests that
+    given — delegates to HeuristicColumnMapper's naive guess so tests that
     don't care about the exact mapping still get a plausible one."""
 
     def __init__(self, response: Optional[MappingProposal] = None, error: Optional[Exception] = None):
@@ -177,25 +214,4 @@ class FakeColumnMapper(ColumnMappingProvider):
             raise self._error
         if self._response is not None:
             return self._response
-
-        lowered = {h.lower(): h for h in headers}
-        guesses = {
-            "invoice_id": ["invoice_id", "invoice id", "invoice number", "invoice_number", "invoice#"],
-            "customer_id": ["customer_id", "customer id"],
-            "customer_name": ["customer_name", "customer name", "customer", "client"],
-            "invoice_date": ["invoice_date", "invoice date", "date"],
-            "due_date": ["due_date", "due date"],
-            "paid_date": ["paid_date", "paid date", "payment date"],
-            "amount": ["amount", "total", "invoice amount"],
-            "currency": ["currency"],
-            "payment_terms": ["payment_terms", "payment terms", "terms"],
-        }
-        mappings = []
-        for canonical, candidates in guesses.items():
-            match = next((lowered[c] for c in candidates if c in lowered), None)
-            mappings.append(FieldMapping(
-                canonical_field=canonical,
-                source_column=match,
-                confidence=0.9 if match else 0.0,
-            ))
-        return MappingProposal(mappings=mappings)
+        return HeuristicColumnMapper().propose_mapping(headers, sample_rows)

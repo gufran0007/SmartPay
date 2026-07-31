@@ -16,7 +16,7 @@ from main import app
 from app.controllers import import_controller
 from app.services.llm_mapping import (
     FakeColumnMapper, MappingProposal, FieldMapping, MappingProviderError,
-    CANONICAL_FIELDS,
+    CANONICAL_FIELDS, AnthropicColumnMapper, HeuristicColumnMapper,
 )
 from app.services.date_parsing import infer_day_first, parse_canonical_date
 from app.services.invoice_import import parse_canonical_amount
@@ -430,3 +430,64 @@ class TestImportFlow:
         assert confirm.status_code == 303
         a_data = a.get("/view-data", follow_redirects=False)
         assert "INV-SECRET" not in a_data.text
+
+
+# ════════════════════════════════════════════════════════
+#  _get_mapping_provider: graceful degrade with no API key
+#
+#  AnthropicColumnMapper() used to be constructed unconditionally here,
+#  which raises MappingProviderError the instant ANTHROPIC_API_KEY is
+#  unset -- and it did so during FastAPI's dependency resolution, before
+#  the route body's own try/except ever ran, so a missing key turned
+#  every /import upload into a bare 500 instead of a normal error redirect.
+# ════════════════════════════════════════════════════════
+
+class TestMappingProviderFallback:
+    def test_key_present_uses_anthropic_mapper(self, monkeypatch):
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "fake-key-for-construction-only")
+        provider = import_controller._get_mapping_provider()
+        assert isinstance(provider, AnthropicColumnMapper)
+
+    def test_key_absent_uses_heuristic_mapper(self, monkeypatch):
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        provider = import_controller._get_mapping_provider()
+        assert isinstance(provider, HeuristicColumnMapper)
+
+    def test_import_completes_end_to_end_with_no_api_key(self, app_client, monkeypatch):
+        """Deliberately does NOT use the `use_mapper` override fixture --
+        this has to exercise the real dependency, not a substitute, to
+        prove the whole upload -> review -> confirm -> train flow survives
+        a missing key rather than 500ing."""
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        client = app_client()
+        register_and_login(client, "nokey@example.com")
+
+        csv_bytes = (
+            b"invoice_id,customer_name,invoice_date,due_date,amount,currency\n"
+            b"INV-900,Delta LLC,2024-01-10,2024-02-10,1200.00,EUR\n"
+        )
+        resp = upload(client, csv_bytes)
+        assert resp.status_code == 303, resp.text
+        import_id = import_id_from_redirect(resp)
+
+        # Column names match the canonical fields exactly, so the heuristic
+        # should have proposed every one of them -- proving this is a
+        # useful degrade, not just "didn't crash".
+        review = client.get(f"/import/{import_id}/review", follow_redirects=False)
+        assert review.status_code == 200
+        assert 'value="invoice_id" selected' in review.text
+        assert 'value="customer_name" selected' in review.text
+        assert 'value="amount" selected' in review.text
+
+        mapping = {
+            "invoice_id": "invoice_id", "customer_name": "customer_name",
+            "invoice_date": "invoice_date", "due_date": "due_date",
+            "amount": "amount", "currency": "currency",
+        }
+        confirm = client.post(f"/import/{import_id}/confirm", data=confirm_form(mapping), follow_redirects=False)
+        assert confirm.status_code == 200, confirm.text
+        assert "1</div>" in confirm.text or ">1<" in confirm.text  # 1 imported, and MLService.train() ran without error
+
+        page = client.get("/view-data", follow_redirects=False)
+        assert "INV-900" in page.text
+        assert "Delta LLC" in page.text

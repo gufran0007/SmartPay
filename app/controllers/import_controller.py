@@ -7,6 +7,7 @@ mapping; it never touches row import or any calculation. Nothing is
 imported until the user confirms the mapping on the review screen.
 """
 import json
+import os
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request, UploadFile, File
@@ -18,17 +19,22 @@ from app.services.auth import require_account, CurrentUser
 from app.services.paths import get_account_upload_dir
 from app.services.llm_mapping import (
     CANONICAL_FIELDS, REQUIRED_CANONICAL_FIELDS,
-    AnthropicColumnMapper, MappingProviderError,
+    AnthropicColumnMapper, HeuristicColumnMapper, MappingProviderError,
 )
 from app.services.invoice_import import (
     read_headers_and_sample, apply_mapping_and_import, error_report_csv,
     UnsupportedFileError,
 )
 from app.services.ml_service import MLService
-from app.services.error_logging import log_exception
+from app.services.error_logging import log_exception, logger
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
+
+if os.environ.get("ANTHROPIC_API_KEY"):
+    logger.info("SMARTPAY_STARTUP column_mapping=llm provider=AnthropicColumnMapper")
+else:
+    logger.info("SMARTPAY_STARTUP column_mapping=heuristic reason=ANTHROPIC_API_KEY_not_set provider=HeuristicColumnMapper")
 
 FIELD_LABELS = {
     "invoice_id": "Invoice ID",
@@ -44,8 +50,22 @@ FIELD_LABELS = {
 
 
 def _get_mapping_provider():
-    """Swappable for tests via app.dependency_overrides."""
-    return AnthropicColumnMapper()
+    """Swappable for tests via app.dependency_overrides.
+
+    Falls back to the deterministic HeuristicColumnMapper when no Anthropic
+    API key is configured, so /import works end to end without one -- the
+    user just does more of the column mapping by hand on the review screen
+    instead of the LLM proposing it. AnthropicColumnMapper (which makes
+    network calls) is only ever constructed when a key is actually present;
+    it previously raised MappingProviderError from right here whenever the
+    key was missing, and that happened during dependency resolution -- before
+    the route body's own try/except ever got a chance to catch it -- so it
+    reached the browser as a bare 500 instead of the "mapping failed"
+    redirect other LLM failures get.
+    """
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        return AnthropicColumnMapper()
+    return HeuristicColumnMapper()
 
 
 def render(request: Request, template: str, status_code: int = 200, **context):
