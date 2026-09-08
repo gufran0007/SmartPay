@@ -8,6 +8,8 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 import smtplib
+from datetime import date
+from app.controllers.invoice_controller import _parse_date
 from email.mime.text import MIMEText
 
 from app.controllers import auth_controller, invoice_controller, prediction_controller, csv_controller, import_controller
@@ -46,8 +48,8 @@ app.include_router(csv_controller.router)
 app.include_router(import_controller.router)
 
 # ===== EMAIL CONFIG =====
-GMAIL_USER = os.environ["GMAIL_USER"]
-GMAIL_APP_PASSWORD = os.environ["GMAIL_APP_PASSWORD"]
+GMAIL_USER = os.environ.get("GMAIL_USER", "")
+GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
 
 @app.get("/")
 def root(request: Request):
@@ -65,7 +67,12 @@ async def send_reminder(invoice_id: int, customer_email: str = Form(...), curren
         if not invoice:
             return RedirectResponse(f"/view-invoice/{invoice_id}?error=Invoice+not+found", status_code=303)
 
-        is_urgent = invoice.features and invoice.features.predicted_label == 1
+        if invoice.status == "paid":
+            return RedirectResponse(f"/view-invoice/{invoice_id}?error=Paid+invoices+do+not+need+reminders", status_code=303)
+        if not GMAIL_USER or not GMAIL_APP_PASSWORD:
+            return RedirectResponse(f"/view-invoice/{invoice_id}?error=Email+reminders+are+not+configured", status_code=303)
+        due = _parse_date(invoice.due_date)
+        is_urgent = due is not None and due < date.today()
 
         if is_urgent:
             subject = f"⚠️ URGENT: Payment Overdue - Invoice #{invoice_id}"
@@ -79,7 +86,7 @@ async def send_reminder(invoice_id: int, customer_email: str = Form(...), curren
         msg['From'] = GMAIL_USER
         msg['To'] = customer_email
 
-        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server = smtplib.SMTP("smtp.gmail.com", 587, timeout=15)
         server.starttls()
         server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
         server.send_message(msg)

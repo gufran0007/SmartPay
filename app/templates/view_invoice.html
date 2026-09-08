@@ -197,14 +197,16 @@
     </div>
 
     <div class="action-row">
+        {% if inv.status != 'paid' %}
         <form action="/send-reminder/{{ inv.id }}" method="post" style="display:inline;">
             <input type="hidden" name="customer_email" value="{{ inv.customer_email if inv.customer_email != 'N/A' else '' }}">
-            <button type="submit" class="btn {% if inv.features and inv.features.predicted_label == 1 %}btn-danger{% else %}btn-primary{% endif %}"
+            <button type="submit" class="btn {% if inv.status == 'overdue' %}btn-danger{% else %}btn-primary{% endif %}"
                     {% if not inv.customer_email or inv.customer_email == 'N/A' %}disabled{% endif %}>
                 <i class="ri-mail-send-line" aria-hidden="true"></i>
-                {% if inv.features and inv.features.predicted_label == 1 %}Send urgent reminder{% else %}Send friendly reminder{% endif %}
+                {% if inv.status == 'overdue' %}Send urgent reminder{% else %}Send friendly reminder{% endif %}
             </button>
         </form>
+        {% endif %}
 
         {% if not inv.customer_email or inv.customer_email == 'N/A' %}
         <div style="width:100%; text-align:center;">

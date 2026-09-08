@@ -16,7 +16,7 @@
 <div class="app-body wide">
     <div class="toolbar">
         <div>
-            <h1 style="font-size: var(--text-xl);">Invoice database</h1>
+            <h1 style="font-size: var(--text-xl);">Your invoices</h1>
             <p class="text-slate" style="margin: 0;">{{ invoices|length }} invoices total</p>
         </div>
         <div style="display:flex; gap: var(--space-2); align-items:center;">
@@ -43,6 +43,8 @@
         </button>
     </div>
 
+    <p id="filterSummary" class="text-slate" role="status" aria-live="polite"></p>
+    <div id="noMatches" class="card state-box" hidden><strong>No matching invoices</strong><p>Try another search or clear your filters.</p><button type="button" class="btn btn-secondary" onclick="clearFilters()">Clear filters</button></div>
     {% if invoices %}
     <div class="card">
         <div class="table-scroll">
@@ -149,22 +151,29 @@
 
 {% block scripts %}
 <script>
-    document.getElementById('searchInput').addEventListener('input', function (e) {
-        var term = e.target.value.toLowerCase();
-        document.querySelectorAll('.invoice-row').forEach(function (row) {
-            row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+    var selectedStatus = new URLSearchParams(location.search).get('status') || 'all';
+    if (!['all', 'pending', 'paid', 'overdue', 'disputed'].includes(selectedStatus)) selectedStatus = 'all';
+    function applyFilters() {
+        var term = document.getElementById('searchInput').value.trim().toLowerCase();
+        var rows = document.querySelectorAll('.invoice-row');
+        var visible = 0;
+        rows.forEach(function(row) {
+            var matches = (selectedStatus === 'all' || row.dataset.status === selectedStatus) && row.textContent.toLowerCase().includes(term);
+            row.hidden = !matches;
+            if (matches) visible++;
         });
-    });
-
-    function filterStatus(status) {
-        document.querySelectorAll('.invoice-row').forEach(function (row) {
-            row.style.display = (status === 'all' || row.dataset.status === status) ? '' : 'none';
-        });
-        document.querySelectorAll('.filter-btn').forEach(function (btn) {
-            var active = btn.dataset.status === status;
+        document.querySelectorAll('.filter-btn').forEach(function(btn) {
+            var active = btn.dataset.status === selectedStatus;
             btn.classList.toggle('btn-primary', active);
             btn.classList.toggle('btn-secondary', !active);
+            btn.setAttribute('aria-pressed', String(active));
         });
+        document.getElementById('filterSummary').textContent = rows.length ? visible + ' of ' + rows.length + ' invoices shown' : '';
+        document.getElementById('noMatches').hidden = visible > 0 || rows.length === 0;
     }
+    function filterStatus(status) { selectedStatus = status; applyFilters(); }
+    function clearFilters() { document.getElementById('searchInput').value = ''; filterStatus('all'); }
+    document.getElementById('searchInput').addEventListener('input', applyFilters);
+    applyFilters();
 </script>
 {% endblock %}

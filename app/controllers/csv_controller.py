@@ -10,7 +10,8 @@ import pandas as pd
 from app.models.database import SessionLocal, Invoice
 from app.services.auth import require_account, CurrentUser
 from app.services.csv_service import CSVService
-from app.services.paths import get_account_upload_dir
+from app.services.paths import get_account_upload_dir, safe_filename
+from uuid import uuid4
 from app.services.error_logging import log_exception
 
 router = APIRouter()
@@ -60,7 +61,7 @@ async def upload_csv(request: Request, file: UploadFile = File(...), current_use
 
     try:
         account_dir = get_account_upload_dir(current_user.account_id)
-        file_path = account_dir / file.filename
+        file_path = account_dir / (uuid4().hex + "_" + safe_filename(file.filename))
         file_path.write_bytes(content)
 
         df = pd.read_csv(file_path)

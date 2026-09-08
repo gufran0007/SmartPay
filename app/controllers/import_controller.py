@@ -16,6 +16,7 @@ mapping; it never touches row import or any calculation.
 """
 import json
 import os
+from uuid import uuid4
 from pathlib import Path
 from urllib.parse import quote
 
@@ -144,7 +145,7 @@ async def import_upload(
 ):
     safe_name = "".join(c for c in file.filename if c.isalnum() or c in "._- ") or "upload"
     account_dir = get_account_upload_dir(current_user.account_id)
-    file_path = account_dir / f"import_{safe_name}"
+    file_path = account_dir / f"import_{uuid4().hex}_{safe_name}"
 
     content = await file.read()
     if len(content) > 10 * 1024 * 1024:

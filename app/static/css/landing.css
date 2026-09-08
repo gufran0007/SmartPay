@@ -1,0 +1,49 @@
+/* A warm editorial introduction to the invoice workspace. */
+body { background:#fafbf7; }
+.guest-nav { background:#fafbf7 !important; padding:22px 32px !important; }
+.guest-nav-inner { max-width:1240px !important; }
+.hero { max-width:1304px !important; display:grid; grid-template-columns:1fr 1fr; gap:56px; align-items:center; padding:88px 32px 96px !important; }
+.hero h1 { font-size:clamp(2.6rem,4.4vw,4.3rem) !important; line-height:1.07 !important; letter-spacing:-.065em; }
+.hero h1 em { font-family:Georgia,serif; font-weight:400; color:var(--signal); }
+.hero p.lede { max-width:44ch !important; line-height:1.7; margin:26px 0 !important; }
+.hero .btn { padding:14px 20px; }
+.hero .eyebrow { font-size:11px; letter-spacing:.13em; }
+.product-preview { background:white; border:1px solid #dce4db; border-radius:18px; box-shadow:0 28px 70px -32px #36553c66; transform:rotate(-1deg); overflow:hidden; }
+.preview-top { padding:18px 22px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.preview-brand { font-weight:700; color:var(--signal); }
+.preview-tag { font-size:9px; letter-spacing:.1em; color:var(--slate); }
+.preview-body { padding:26px; }
+.preview-title { display:flex; align-items:center; justify-content:space-between; }
+.preview-title .eyebrow { font-size:9px; }
+.preview-title h2 { font-size:22px; margin:8px 0 20px; letter-spacing:-.04em; }
+.preview-avatar { background:#efeddf; border-radius:50%; padding:11px; font-size:11px; font-weight:700; }
+.preview-metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:22px; }
+.preview-metrics > div { border:1px solid var(--border); padding:13px 10px; border-radius:9px; }
+.preview-metrics small { display:block; font-size:10px; color:var(--slate); }
+.preview-metrics strong { display:block; font-size:29px; letter-spacing:-.05em; }
+.preview-metrics span { font-size:9px; color:var(--slate); }
+.preview-metrics .metric-dot { color:var(--signal); margin-left:6px; }
+.preview-chart { border-radius:10px; background:#edf3e9; padding:18px 18px 0; margin-bottom:12px; }
+.preview-chart strong { font-size:12px; }
+.preview-chart small { display:block; font-size:10px; color:var(--slate); margin-top:3px; }
+.bars { height:88px; display:flex; gap:9px; align-items:end; margin-top:20px; }
+.bars i { height:var(--h); flex:1; background:#a1bea0; border-radius:4px 4px 0 0; }
+.bars i:nth-last-child(-n+3) { background:#236a4e; }
+.preview-invoice { display:flex; align-items:center; gap:10px; padding:15px 0; border-bottom:1px solid var(--border); }
+.preview-invoice strong { font-size:11px; }
+.preview-invoice small { display:block; font-size:10px; color:var(--slate); }
+.client-icon { padding:8px 12px; background:#e8e9f3; color:#545c89; border-radius:9px; font-weight:700; }
+.client-icon.peach { background:#f4e8dc; color:#986945; }
+.preview-price { margin-left:auto; text-align:right; font-size:12px; font-weight:600; }
+.preview-price .paid-label { color:var(--signal); }
+.preview-price .overdue-label { color:var(--critical); }
+.preview-foot { background:#f6f8f3; padding:13px 22px; display:flex; justify-content:space-between; gap:12px; font-size:10px; color:var(--slate); }
+.section-inner { max-width:1240px !important; padding:64px 32px !important; }
+.section h2 { letter-spacing:-.04em; }
+.feature-grid .card { background:transparent; border:none; box-shadow:none; padding:12px 0 !important; }
+.feature-grid { gap:60px !important; }
+.cta-band { background:#173f32 !important; }
+#how-it-works { scroll-margin-top:30px; }
+@media(max-width:950px) { .hero { gap:30px; } .preview-body { padding:18px; } .preview-metrics { gap:6px; } }
+@media(max-width:780px) { .hero { grid-template-columns:1fr; padding:48px 24px 64px !important; } .hero-inner { max-width:600px !important; } .product-preview { max-width:560px; width:100%; margin-top:15px; transform:none; } .hero h1 { font-size:3.2rem !important; } .section-inner { padding:44px 24px !important; } .feature-grid { gap:24px !important; } }
+@media(max-width:480px) { .guest-nav { padding:18px 20px !important; } .guest-nav .actions .login { display:inline !important; } .guest-nav .actions .login:first-child { display:none !important; } .hero h1 { font-size:2.8rem !important; } .preview-body { padding:16px; } .preview-metrics small { font-size:9px; } .preview-tag { font-size:8px; } .preview-invoice { gap:8px; } }

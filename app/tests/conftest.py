@@ -109,3 +109,10 @@ def invoice_text():
         "Due Date: 15/03/2024\n"
         "Total: €1,250.00\n"
     )
+
+
+@pytest.fixture(autouse=True)
+def isolated_mapping_configuration(monkeypatch):
+    """Provider tests opt in explicitly; local .env keys must not change flows."""
+    for key in ("GEMINI_API_KEY", "ANTHROPIC_API_KEY", "MAPPING_PROVIDER"):
+        monkeypatch.delenv(key, raising=False)

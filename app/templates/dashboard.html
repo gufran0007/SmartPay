@@ -1,258 +1,27 @@
 {% extends "base.html" %}
-
-{% block title %}Dashboard · Smart Pay{% endblock %}
-
-{% block head %}
-<style>
-    .welcome-banner { background: var(--signal); color: white; padding: var(--space-6) var(--space-5); margin-bottom: var(--space-6); }
-    .welcome-banner h1 { color: white; font-size: var(--text-2xl); margin-bottom: var(--space-1); }
-    .welcome-banner p { color: rgba(255,255,255,0.85); margin-bottom: var(--space-4); }
-    .welcome-banner .btn-primary { background: white; color: var(--signal-strong); }
-    .welcome-banner .btn-primary:hover { background: var(--paper); }
-    .welcome-banner .btn-secondary { background: transparent; border-color: rgba(255,255,255,0.4); color: white; }
-    .welcome-banner .btn-secondary:hover { border-color: white; color: white; }
-
-    .split-bar { height: 8px; border-radius: var(--radius-full); overflow: hidden; display: flex; background: var(--surface-2); margin-bottom: var(--space-2); }
-    .split-bar span { display: block; height: 100%; }
-    .split-legend { display: flex; align-items: center; gap: var(--space-3); font-size: var(--text-xs); color: var(--slate); flex-wrap: wrap; }
-    .split-legend .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
-
-    .charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-5); margin-bottom: var(--space-6); }
-    .chart-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border); text-align: center; }
-    .chart-summary .label { font-size: var(--text-xs); color: var(--slate); margin-bottom: 2px; }
-
-    .quick-actions-grid { display: grid; grid-template-columns: 1fr 2fr; gap: var(--space-5); margin-bottom: var(--space-6); }
-    .quick-actions .btn { width: 100%; justify-content: flex-start; margin-bottom: var(--space-2); }
-
-    @media (max-width: 900px) {
-        .stat-grid { grid-template-columns: repeat(2, 1fr); }
-        .charts-grid, .quick-actions-grid { grid-template-columns: 1fr; }
-    }
-</style>
-{% endblock %}
-
+{% block title %}Overview · Smart Pay{% endblock %}
 {% block content %}
-<div class="app-body">
-    <section class="card welcome-banner">
-        <span class="eyebrow" style="color: rgba(255,255,255,0.8);">Live overview</span>
-        <h1>Welcome back</h1>
-        <p>{{ current_user.email }} — here's how your invoices and customers are tracking today.</p>
-        <div style="display:flex; gap: var(--space-3); flex-wrap: wrap;">
-            <a href="/upload" class="btn btn-primary"><i class="ri-upload-cloud-line" aria-hidden="true"></i> Upload invoice</a>
-            <a href="/ml/analytics" class="btn btn-secondary"><i class="ri-brain-line" aria-hidden="true"></i> View insights</a>
-        </div>
-    </section>
-
-    {% set _pt = paid_on_time | default(0) %}
-    {% set _lt = paid_late | default(0) %}
-    {% set _np = not_paid | default(0) %}
-    {% set _ptot = _pt + _lt + _np %}
-    {% set _lr = low_risk_count | default(0) %}
-    {% set _mr = medium_risk_count | default(0) %}
-    {% set _hr = high_risk_count | default(0) %}
-    {% set _ctot = _lr + _mr + _hr %}
-
-    <div class="stat-grid">
-        <div class="card stat-card">
-            <div class="stat-label">Total invoices</div>
-            <div class="stat-value">{{ total_invoices }}</div>
-            <div class="split-bar" style="margin-top: var(--space-3);">
-                <span style="width: {{ ((_pt/_ptot*100)|round(2)) if _ptot else 0 }}%; background: var(--success);"></span>
-                <span style="width: {{ ((_lt/_ptot*100)|round(2)) if _ptot else 0 }}%; background: var(--warning);"></span>
-                <span style="width: {{ ((_np/_ptot*100)|round(2)) if _ptot else 0 }}%; background: var(--critical);"></span>
-            </div>
-            <div class="split-legend">
-                <span><span class="dot" style="background: var(--success);"></span>On time {{ _pt }}</span>
-                <span><span class="dot" style="background: var(--warning);"></span>Late {{ _lt }}</span>
-                <span><span class="dot" style="background: var(--critical);"></span>Unpaid {{ _np }}</span>
-            </div>
-        </div>
-
-        <div class="card stat-card">
-            <div class="stat-label">Customers</div>
-            <div class="stat-value">{{ total_customers }}</div>
-            <div class="split-bar" style="margin-top: var(--space-3);">
-                <span style="width: {{ ((_lr/_ctot*100)|round(2)) if _ctot else 0 }}%; background: var(--success);"></span>
-                <span style="width: {{ ((_mr/_ctot*100)|round(2)) if _ctot else 0 }}%; background: var(--warning);"></span>
-                <span style="width: {{ ((_hr/_ctot*100)|round(2)) if _ctot else 0 }}%; background: var(--critical);"></span>
-            </div>
-            <div class="split-legend">
-                <span><span class="dot" style="background: var(--success);"></span>Low {{ _lr }}</span>
-                <span><span class="dot" style="background: var(--warning);"></span>Med {{ _mr }}</span>
-                <span><span class="dot" style="background: var(--critical);"></span>High {{ _hr }}</span>
-            </div>
-        </div>
-
-        <div class="card stat-card">
-            <div class="stat-label">High risk</div>
-            <div class="stat-value" style="color: var(--critical);">{{ high_risk_count }}</div>
-            <div class="stat-sub">
-                <span class="pill pill-critical"><span class="pill-dot"></span>Needs attention</span>
-            </div>
-        </div>
-
-        <div class="card stat-card">
-            <div class="stat-label">Avg reliability</div>
-            <div style="display:flex; align-items:center; gap: var(--space-3); margin-top: 4px;">
-                <div class="ring" style="--p: {{ avg_reliability | default(0) }};"><span>{{ avg_reliability }}%</span></div>
-                {% if (avg_reliability | default(0)) >= 70 %}
-                <span class="pill pill-success"><span class="pill-dot"></span>Healthy</span>
-                {% else %}
-                <span class="pill pill-warning"><span class="pill-dot"></span>Watch</span>
-                {% endif %}
-            </div>
-        </div>
+<div class="app-body wide">
+    <div class="overview-heading"><div><span class="eyebrow">YOUR WORKSPACE</span><h1>A clearer picture of your payments.</h1><p class="text-slate">Keep track of what’s paid, what’s next, and what needs your attention.</p></div><a href="/upload" class="btn btn-primary">+ Add an invoice</a></div>
+    {% if not total_invoices %}
+    <section class="onboarding card"><div><span class="eyebrow">LET’S GET YOU STARTED</span><h2>Your next payment starts here.</h2><p>Upload a PDF or image, review the details, and track it through to payment. Already have a spreadsheet? Bring your history with you.</p><div class="action-row"><a class="btn btn-primary" href="/upload">Upload your first invoice</a><a class="btn btn-secondary" href="/import">Import a spreadsheet</a></div></div><div class="onboarding-steps"><p><b>01</b> Add your invoices</p><p><b>02</b> Check the extracted details</p><p><b>03</b> Track payments and explore risk</p></div></section>
+    {% endif %}
+    <div class="stat-grid overview-stats">
+    {% for label, value, filter, description in [('Total invoices',total_invoices,'all','Everything in your workspace'),('Awaiting payment',status_pending,'pending','Open invoices within their due date'),('Overdue',status_overdue,'overdue','Unpaid and past their due date'),('Paid',status_paid,'paid','Payments marked as received')] %}
+        <a href="/view-data?status={{ filter }}" class="card stat-card stat-link"><div class="stat-label">{{ label }} <span aria-hidden="true">↗</span></div><div class="stat-value {% if filter == 'overdue' and value %}text-critical{% endif %}">{{ value }}</div><div class="stat-sub">{{ description }}</div></a>
+    {% endfor %}
     </div>
-
-    <div class="charts-grid">
-        <div class="card panel">
-            <div class="panel-head"><h2>Customer risk distribution</h2></div>
-            <p class="text-slate" style="font-size: var(--text-sm); margin-top: -8px;">How your customers split across risk levels.</p>
-            <div style="height: 220px;"><canvas id="riskPieChart"></canvas></div>
-            <div class="chart-summary">
-                <div><div class="label">Low</div><div class="text-success" style="font-weight:600;">{{ _lr }}</div></div>
-                <div><div class="label">Medium</div><div style="color: var(--warning); font-weight:600;">{{ _mr }}</div></div>
-                <div><div class="label">High</div><div class="text-critical" style="font-weight:600;">{{ _hr }}</div></div>
-            </div>
-        </div>
-        <div class="card panel">
-            <div class="panel-head"><h2>Payment behavior</h2></div>
-            <p class="text-slate" style="font-size: var(--text-sm); margin-top: -8px;">On-time vs late vs unpaid invoices.</p>
-            <div style="height: 220px;"><canvas id="paymentBarChart"></canvas></div>
-            <div class="chart-summary">
-                <div><div class="label">On time</div><div class="text-success" style="font-weight:600;">{{ _pt }}</div></div>
-                <div><div class="label">Late</div><div style="color: var(--warning); font-weight:600;">{{ _lt }}</div></div>
-                <div><div class="label">Not paid</div><div class="text-critical" style="font-weight:600;">{{ _np }}</div></div>
-            </div>
-        </div>
+    <div class="overview-grid">
+        <section class="card panel"><div class="panel-head"><div><span class="eyebrow">PRIORITY LIST</span><h2>Needs your attention</h2></div><span class="pill {% if status_overdue %}pill-critical{% else %}pill-neutral{% endif %}">{{ status_overdue }} overdue</span></div>
+        {% if attention_invoices %}
+        <div class="attention-list">{% for inv in attention_invoices %}<a href="/view-invoice/{{ inv.id }}" class="attention-item"><span class="invoice-icon" aria-hidden="true">↗</span><span><strong>{{ inv.customer_name if inv.customer_name and inv.customer_name != 'N/A' else 'Review customer details' }}</strong><small>#{{ inv.invoice_number if inv.invoice_number and inv.invoice_number != 'N/A' else inv.id }} · Due {{ inv.due_date }}</small></span><span class="attention-amount">{{ inv.amount }} {{ inv.currency if inv.currency != 'N/A' else '' }}<small class="text-critical">Overdue</small></span></a>{% endfor %}</div><a href="/view-data?status=overdue" class="panel-link">View all overdue invoices →</a>
+        {% else %}<div class="state-box"><div class="state-icon" aria-hidden="true">✓</div><strong>{{ 'You’re all caught up' if total_invoices else 'A fresh start' }}</strong><p>{{ 'No invoices are currently overdue. Check back as due dates approach.' if total_invoices else 'Add your invoices and we’ll bring overdue payments here.' }}</p></div>{% endif %}
+        </section>
+        <aside class="card panel workspace-note"><span class="eyebrow">A LITTLE LESS ADMIN</span><h2>Make your history work for you.</h2><p>Import past invoices to explore payment patterns. Predictions explain whether they use a trained model or a simple estimate.</p><a href="/import" class="btn btn-secondary">Import invoice history →</a><div class="workspace-facts"><p><strong>{{ total_customers }}</strong> customers in your invoices</p><p><strong>{{ status_disputed }}</strong> disputed invoices</p><p><strong>{{ incomplete_count }}</strong> invoices with missing key details</p></div><a href="/ml/analytics" class="panel-link">Explore payment insights →</a></aside>
     </div>
-
-    <div class="quick-actions-grid">
-        <div class="card panel quick-actions">
-            <div class="panel-head"><h2>Quick actions</h2></div>
-            <a href="/upload" class="btn btn-primary"><i class="ri-upload-cloud-line" aria-hidden="true"></i> Upload invoice</a>
-            <a href="/import" class="btn btn-secondary"><i class="ri-file-excel-2-line" aria-hidden="true"></i> Import invoice history</a>
-            <a href="/ml/train" class="btn btn-secondary"><i class="ri-brain-line" aria-hidden="true"></i> Train ML model</a>
-            <a href="/view-data" class="btn btn-secondary"><i class="ri-table-line" aria-hidden="true"></i> View all invoices</a>
-        </div>
-        <div class="card panel">
-            <div class="panel-head">
-                <h2><i class="ri-alert-line text-critical" aria-hidden="true"></i> High risk customers</h2>
-                {% if high_risk_customers %}<span class="text-slate" style="font-size: var(--text-xs);">Top {{ high_risk_customers[:5]|length }}</span>{% endif %}
-            </div>
-            {% if high_risk_customers %}
-            <div class="table-scroll">
-                <table class="data-table">
-                    <thead>
-                        <tr><th>Customer</th><th>Invoices</th><th>Late</th><th>Reliability</th><th></th></tr>
-                    </thead>
-                    <tbody>
-                        {% for c in high_risk_customers[:5] %}
-                        <tr>
-                            <td data-label="Customer" class="primary-cell">{{ c.name[:20] }}</td>
-                            <td data-label="Invoices">{{ c.total_invoices }}</td>
-                            <td data-label="Late" class="text-critical">{{ c.paid_late }}</td>
-                            <td data-label="Reliability">
-                                <span class="meter"><span style="width: {{ (c.payment_reliability * 100)|int }}%; background: var(--critical);"></span></span>
-                                {{ (c.payment_reliability * 100)|int }}%
-                            </td>
-                            <td data-label=""><a href="/customer-insights/{{ c.name }}" aria-label="View {{ c.name }} insights" class="btn btn-ghost btn-icon btn-sm"><i class="ri-eye-line" aria-hidden="true"></i></a></td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            <a href="/customers" class="btn btn-secondary btn-block" style="margin-top: var(--space-4);">View all customers <i class="ri-arrow-right-line" aria-hidden="true"></i></a>
-            {% else %}
-            <div class="state-box">
-                <div class="state-icon"><i class="ri-shield-check-line" aria-hidden="true"></i></div>
-                <strong>No high-risk customers</strong>
-                Your portfolio looks healthy.
-            </div>
-            {% endif %}
-        </div>
-    </div>
-
-    <div class="card panel">
-        <div class="panel-head">
-            <h2><i class="ri-time-line" aria-hidden="true"></i> Recent invoices</h2>
-            <a href="/view-data" class="panel-link">View all <i class="ri-arrow-right-line" aria-hidden="true"></i></a>
-        </div>
-        {% if recent_invoices %}
-        <div class="table-scroll">
-            <table class="data-table">
-                <thead>
-                    <tr><th>Invoice #</th><th>Customer</th><th>Amount</th><th>Due date</th><th>Risk</th><th></th></tr>
-                </thead>
-                <tbody>
-                    {% for inv in recent_invoices %}
-                    <tr>
-                        <td data-label="Invoice #" class="primary-cell">#{{ inv.invoice_number or inv.id }}</td>
-                        <td data-label="Customer">{{ inv.customer_name if inv.customer_name and inv.customer_name != 'N/A' else '—' }}</td>
-                        <td data-label="Amount" class="amount">{{ inv.amount }} {{ inv.currency }}</td>
-                        <td data-label="Due date">{{ inv.due_date if inv.due_date and inv.due_date != 'N/A' else '—' }}</td>
-                        <td data-label="Risk">
-                            {% if inv.features and inv.features.predicted_label == 1 %}
-                            <span class="pill pill-critical"><span class="pill-dot"></span>High</span>
-                            {% elif inv.features and inv.features.predicted_label == 0 %}
-                            <span class="pill pill-success"><span class="pill-dot"></span>Low</span>
-                            {% else %}
-                            <span class="pill pill-neutral">—</span>
-                            {% endif %}
-                        </td>
-                        <td data-label=""><a href="/view-invoice/{{ inv.id }}" aria-label="View invoice" class="btn btn-ghost btn-icon btn-sm"><i class="ri-eye-line" aria-hidden="true"></i></a></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <div class="state-box">
-            <div class="state-icon"><i class="ri-inbox-line" aria-hidden="true"></i></div>
-            <strong>No invoices yet</strong>
-            Upload your first invoice to get started.
-            <div style="margin-top: var(--space-4);">
-                <a href="/upload" class="btn btn-primary"><i class="ri-upload-cloud-line" aria-hidden="true"></i> Upload your first invoice</a>
-            </div>
-        </div>
-        {% endif %}
-    </div>
+    <section class="card panel"><div class="panel-head"><div><span class="eyebrow">THE LATEST ACTIVITY</span><h2>Recent invoices</h2></div><a href="/view-data" class="panel-link">View all →</a></div>
+    {% if recent_invoices %}<div class="table-scroll"><table class="data-table"><thead><tr><th>Invoice</th><th>Customer</th><th>Amount</th><th>Due date</th><th>Status</th><th></th></tr></thead><tbody>
+    {% for inv in recent_invoices %}<tr><td data-label="Invoice" class="primary-cell">#{{ inv.invoice_number if inv.invoice_number and inv.invoice_number != 'N/A' else inv.id }}</td><td data-label="Customer">{{ inv.customer_name if inv.customer_name != 'N/A' else 'Needs review' }}</td><td data-label="Amount" class="amount">{{ inv.amount }} {{ inv.currency if inv.currency != 'N/A' else '' }}</td><td data-label="Due date">{{ inv.due_date if inv.due_date != 'N/A' else 'Not set' }}</td><td data-label="Status"><span class="pill {{ 'pill-success' if inv.status == 'paid' else 'pill-critical' if inv.status == 'overdue' else 'pill-neutral' }}">{{ (inv.status or 'pending')|capitalize }}</span></td><td><a href="/view-invoice/{{ inv.id }}" class="btn btn-ghost btn-sm" aria-label="Open invoice {{ inv.invoice_number or inv.id }}">Open →</a></td></tr>{% endfor %}
+    </tbody></table></div>{% else %}<p class="text-slate">Your invoices will appear here once you upload or import them.</p>{% endif %}</section>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    var lowRisk = {{ low_risk_count | default(0) }};
-    var mediumRisk = {{ medium_risk_count | default(0) }};
-    var highRisk = {{ high_risk_count | default(0) }};
-    var onTime = {{ paid_on_time | default(0) }};
-    var late = {{ paid_late | default(0) }};
-    var unpaid = {{ not_paid | default(0) }};
-
-    var tokenStyle = getComputedStyle(document.documentElement);
-    var signal = tokenStyle.getPropertyValue('--success').trim() || '#2E8B57';
-    var warning = tokenStyle.getPropertyValue('--warning').trim() || '#9A6B0B';
-    var critical = tokenStyle.getPropertyValue('--critical').trim() || '#C0392B';
-    var slate = tokenStyle.getPropertyValue('--slate').trim() || '#667370';
-    var border = tokenStyle.getPropertyValue('--border').trim() || '#E2E7E5';
-
-    new Chart(document.getElementById('riskPieChart'), {
-        type: 'doughnut',
-        data: {
-            labels: ['Low Risk', 'Medium Risk', 'High Risk'],
-            datasets: [{ data: [lowRisk, mediumRisk, highRisk], backgroundColor: [signal, warning, critical], borderColor: '#ffffff', borderWidth: 3, hoverOffset: 6 }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, cutout: '66%', plugins: { legend: { position: 'bottom', labels: { color: slate, usePointStyle: true, pointStyle: 'circle', padding: 16 } } } }
-    });
-
-    new Chart(document.getElementById('paymentBarChart'), {
-        type: 'bar',
-        data: {
-            labels: ['On Time', 'Late', 'Not Paid'],
-            datasets: [{ data: [onTime, late, unpaid], backgroundColor: [signal, warning, critical], borderRadius: 8, maxBarThickness: 56 }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: border }, ticks: { color: slate } }, x: { grid: { display: false }, ticks: { color: slate } } } }
-    });
-</script>
 {% endblock %}

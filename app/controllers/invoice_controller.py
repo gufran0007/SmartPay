@@ -8,6 +8,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 import re
+from uuid import uuid4
 
 from app.models.database import SessionLocal, Invoice, InvoiceFeatures
 from app.services.auth import require_account, CurrentUser
@@ -288,40 +289,18 @@ def dashboard(request: Request, current_user: CurrentUser = Depends(require_acco
         _auto_update_statuses(db)
 
         invoices = db.query(Invoice).order_by(Invoice.created_at.desc()).all()
-        csv_service = CSVService(upload_dir=get_account_upload_dir(current_user.account_id))
-        stats = csv_service.get_stats()
-        all_customers = csv_service.get_all_customers()
-        high_risk_customers = csv_service.get_high_risk_customers(0.6)
-
-        low_risk = medium_risk = high_risk = paid_on_time = paid_late = not_paid = 0
-        for c in all_customers:
-            rel = c.get('payment_reliability', 0.5)
-            if rel >= 0.7: low_risk += 1
-            elif rel >= 0.4: medium_risk += 1
-            else: high_risk += 1
-            paid_on_time += c.get('paid_on_time', 0)
-            paid_late += c.get('paid_late', 0)
-            not_paid += c.get('not_paid', 0)
-
-        avg_rel = stats.get('avg_reliability', 0.5)
-        avg_reliability = int(avg_rel * 100) if isinstance(avg_rel, float) and avg_rel <= 1 else int(avg_rel)
-
-        # Invoice status counts
-        status_pending = sum(1 for i in invoices if (i.status or 'pending') == 'pending')
-        status_paid = sum(1 for i in invoices if i.status == 'paid')
-        status_overdue = sum(1 for i in invoices if i.status == 'overdue')
-        status_disputed = sum(1 for i in invoices if i.status == 'disputed')
-
+        counts = {key: sum((i.status or 'pending') == key for i in invoices)
+                  for key in ('pending', 'paid', 'overdue', 'disputed')}
+        customers = {i.customer_name.strip().casefold() for i in invoices
+                     if i.customer_name and i.customer_name.strip() not in ('', 'N/A')}
+        attention = sorted((i for i in invoices if i.status == 'overdue'),
+                           key=lambda i: _parse_date(i.due_date) or date.max)
         return templates.TemplateResponse("dashboard.html", {
             "request": request, "current_user": current_user,
-            "total_invoices": len(invoices),
-            "total_customers": stats.get('total_customers', 0),
-            "high_risk_count": len(high_risk_customers), "avg_reliability": avg_reliability,
-            "recent_invoices": invoices[:10], "high_risk_customers": high_risk_customers[:5],
-            "low_risk_count": low_risk, "medium_risk_count": medium_risk,
-            "paid_on_time": paid_on_time, "paid_late": paid_late, "not_paid": not_paid,
-            "status_pending": status_pending, "status_paid": status_paid,
-            "status_overdue": status_overdue, "status_disputed": status_disputed,
+            "total_invoices": len(invoices), "total_customers": len(customers),
+            "recent_invoices": invoices[:8], "attention_invoices": attention[:5],
+            "incomplete_count": sum(not i.is_complete for i in invoices),
+            **{f"status_{key}": value for key, value in counts.items()},
         })
     finally:
         db.close()
@@ -344,7 +323,7 @@ async def upload_invoice(request: Request, file: UploadFile = File(...), current
                 "error": f"Invalid file type '{ext}'. Allowed: PDF, JPG, PNG"
             })
 
-        safe_name = re.sub(r'[^a-zA-Z0-9._\- ]', '', file.filename).strip() or "upload" + ext
+        safe_name = uuid4().hex + "_" + (re.sub(r'[^a-zA-Z0-9._\- ]', '', file.filename).strip() or "upload" + ext)
         account_dir = get_account_upload_dir(current_user.account_id)
         file_path = account_dir / safe_name
         content = await file.read()
@@ -460,7 +439,13 @@ async def update_status(request: Request, invoice_id: int, status: str = Form(..
     try:
         invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
         if invoice:
+            if status == 'paid':
+                if invoice.status != 'paid' or not invoice.paid_date:
+                    invoice.paid_date = date.today().isoformat()
+            else:
+                invoice.paid_date = None
             invoice.status = status
+            invoice.status = _check_overdue(invoice)
             db.commit()
         return RedirectResponse(f"/view-invoice/{invoice_id}", status_code=303)
     finally:
