@@ -154,8 +154,8 @@ def customers_page(request: Request, current_user: CurrentUser = Depends(require
                     "company": stats["company"],
                     "email": stats["email"],
                     "payment_reliability": reliability,
-                    "reliability_percent": f"{round(reliability * 100)}%",
-                    "risk_level": get_risk_label(reliability),
+                    "reliability_percent": "Not assessed",
+                    "risk_level": "Not assessed",
                     "total_invoices": 0,
                     "total_amount": 0.0,
                     "avg_payment_delay": 0.0,
@@ -186,21 +186,28 @@ def customers_page(request: Request, current_user: CurrentUser = Depends(require
         db.close()
 
 
-@router.get("/customer-insights/{customer_name}")
+@router.get("/customer-insights/{customer_name:path}")
 def customer_insights(request: Request, customer_name: str, current_user: CurrentUser = Depends(require_account)):
     """View detailed insights for a specific customer"""
-    from urllib.parse import unquote
-
-    name = unquote(customer_name)
+    name = customer_name
     csv_service = CSVService(upload_dir=get_account_upload_dir(current_user.account_id))
     customer = csv_service.find_customer_match(name)
 
     if not customer:
-        return render(request, "error.html",
-                     current_user=current_user,
-                     error_code=404,
-                     message="Customer Not Found",
-                     description=f"No data found for customer: {name}")
+        db = SessionLocal()
+        try:
+            invoices = [inv for inv in db.query(Invoice).order_by(Invoice.created_at.desc()).all()
+                        if (inv.customer_name or "").strip().casefold() == name.strip().casefold()]
+            if invoices:
+                return render(request, "customer_invoices.html", current_user=current_user,
+                              customer_name=invoices[0].customer_name, invoices=invoices,
+                              paid_count=sum(inv.status == "paid" for inv in invoices))
+        finally:
+            db.close()
+        return templates.TemplateResponse("error.html", {
+            "request": request, "current_user": current_user, "error_code": 404,
+            "message": "Customer Not Found", "description": f"No data found for customer: {name}"
+        }, status_code=404)
 
     # Calculate risk assessment
     risk_assessment = csv_service.calculate_payment_risk(customer, 0)

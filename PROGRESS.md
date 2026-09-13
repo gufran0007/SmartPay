@@ -16,3 +16,10 @@ Validation: full suite 225 passed, 1 skipped (optional Gemini SDK check); deskto
 Scope and follow-up: this is a tested improvement pass, not a claim that every production path is audited. Review customer insights for database-only customers, edit-form validation, scanned PDF OCR availability, and CSRF coverage in subsequent runs. Real email delivery, external AI services and production deployment were not exercised. Existing .env.example deletion belongs to the user and is excluded from this commit.
 
 Daily workflow: inspect status first, preserve unrelated work, choose one useful change, test and visually check it, commit only that change and push without force. Never publish credentials, database contents or customer uploads. Update this log with evidence and blockers.
+
+## 2026-09-13 - Customer details without legacy CSV history
+
+- Customers saved through invoice upload or canonical import now have a useful Details page listing their account's invoice records, amounts with original currencies, and links to each invoice.
+- Replaced the unsupported default 50% reliability / High risk presentation with Not assessed for customers without legacy payment analysis.
+- Support slashes in customer names and avoid decoding names twice. Missing or cross-account customers return HTTP 404.
+- Validation: 32 focused customer and tenancy tests passed; browser verified Customers -> North Studio -> invoice summary using the isolated preview database. No real emails or external AI calls. Existing .env.example deletion left untouched.

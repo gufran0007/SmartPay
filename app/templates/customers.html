@@ -40,14 +40,16 @@
                             {% if c.email %}<div style="font-size: var(--text-xs);"><a href="mailto:{{ c.email }}">{{ c.email[:25] }}</a></div>{% endif %}
                         </td>
                         <td data-label="Reliability">
+                            {% if c.has_csv_data %}
                             {% set pct = (c.payment_reliability * 100)|round %}
                             <div style="display:flex; align-items:center; gap: var(--space-2);">
                                 <span class="meter"><span style="width: {{ pct }}%; background: {% if pct >= 80 %}var(--success){% elif pct >= 60 %}var(--warning){% else %}var(--critical){% endif %};"></span></span>
                                 <span style="font-weight:600; font-size: var(--text-sm);">{{ c.reliability_percent }}</span>
                             </div>
+                            {% else %}<span class="text-slate">Not assessed</span>{% endif %}
                         </td>
                         <td data-label="Risk level">
-                            <span class="pill {% if c.risk_level == 'Low' %}pill-success{% elif c.risk_level == 'Medium' %}pill-warning{% else %}pill-critical{% endif %}">{{ c.risk_level }}</span>
+                            <span class="pill {% if c.risk_level == 'Low' %}pill-success{% elif c.risk_level == 'Medium' %}pill-warning{% elif c.risk_level == 'High' %}pill-critical{% else %}pill-neutral{% endif %}">{{ c.risk_level }}</span>
                         </td>
                         <td data-label="Payment stats" style="font-size: var(--text-sm);">
                             {% if c.has_csv_data %}

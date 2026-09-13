@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ customer_name }} · Smart Pay{% endblock %}
+{% block content %}
+<div class="app-body">
+    <a href="/customers" class="panel-link">← Back to customers</a>
+    <div class="overview-heading"><div><span class="eyebrow">CUSTOMER OVERVIEW</span><h1 style="overflow-wrap:anywhere">{{ customer_name }}</h1><p class="text-slate">{{ invoices|length }} invoices · {{ paid_count }} marked paid</p></div><span class="pill pill-neutral">Risk not assessed</span></div>
+    <div class="card panel"><h2>Your invoice records</h2><p class="text-slate">These are the invoices saved in your account. A missing risk assessment does not mean this customer is high risk.</p>
+    <div class="table-scroll"><table class="data-table"><thead><tr><th>Invoice</th><th>Amount</th><th>Due date</th><th></th></tr></thead><tbody>
+    {% for inv in invoices %}<tr><td data-label="Invoice">{{ inv.invoice_number if inv.invoice_number and inv.invoice_number != 'N/A' else inv.id }}</td><td data-label="Amount">{{ inv.amount }} {{ inv.currency if inv.currency != 'N/A' else '' }}</td><td data-label="Due date">{{ inv.due_date if inv.due_date and inv.due_date != 'N/A' else 'Not set' }}</td><td><a class="btn btn-secondary btn-sm" href="/view-invoice/{{ inv.id }}">Open invoice</a></td></tr>{% endfor %}
+    </tbody></table></div></div>
+</div>
+{% endblock %}
