@@ -23,3 +23,10 @@ Daily workflow: inspect status first, preserve unrelated work, choose one useful
 - Replaced the unsupported default 50% reliability / High risk presentation with Not assessed for customers without legacy payment analysis.
 - Support slashes in customer names and avoid decoding names twice. Missing or cross-account customers return HTTP 404.
 - Validation: 32 focused customer and tenancy tests passed; browser verified Customers -> North Studio -> invoice summary using the isolated preview database. No real emails or external AI calls. Existing .env.example deletion left untouched.
+
+## 2026-10-25 - Validate invoice edits on the server
+
+- Invoice edit submissions now validate amounts, email addresses, dates, invoice numbers and VAT IDs before saving.
+- Invalid submissions show field-specific errors and retain entered values; empty optional fields can be cleared.
+- Render unavailable N/A values as blank inputs so browser validation does not reject existing records during a normal save.
+- Validation: full suite 229 passed, 1 skipped (optional SDK check); browser verified invalid amount is rejected inline and retained. No email sent. Existing .env.example deletion preserved.

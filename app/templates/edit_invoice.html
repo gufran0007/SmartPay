@@ -28,12 +28,12 @@
     </div>
     {% endif %}
 
-    <form method="post" action="/update-invoice/{{ inv.id }}" class="card card-pad" id="editForm" novalidate>
+    <form method="post" action="/update-invoice/{{ inv.id }}" class="card card-pad" id="editForm">
 
         <div class="form-grid-2">
             <div class="field">
                 <label for="invoice_number">Invoice number</label>
-                <input type="text" id="invoice_number" name="invoice_number" value="{{ inv.invoice_number }}"
+                <input type="text" id="invoice_number" name="invoice_number" value="{{ form.get('invoice_number', '' if inv.invoice_number == 'N/A' else inv.invoice_number) if form is defined else ('' if inv.invoice_number == 'N/A' else inv.invoice_number) }}"
                        pattern="^[A-Za-z0-9\-_/]+$" maxlength="50"
                        class="input {% if errors and errors.invoice_number %}input-error{% endif %}"
                        placeholder="e.g. INV-2024-001">
@@ -54,7 +54,7 @@
         <div class="form-grid-3">
             <div class="field">
                 <label for="amountInput">Amount</label>
-                <input type="text" name="amount" value="{{ inv.amount }}" id="amountInput"
+                <input type="text" name="amount" value="{{ form.get('amount', '' if inv.amount == 'N/A' else inv.amount) if form is defined else ('' if inv.amount == 'N/A' else inv.amount) }}" id="amountInput"
                        class="input {% if errors and errors.amount %}input-error{% endif %}"
                        placeholder="e.g. 5000.00">
                 {% if errors and errors.amount %}
@@ -66,7 +66,7 @@
 
             <div class="field">
                 <label for="date">Invoice date</label>
-                <input type="date" id="date" name="date" value="{{ inv.date }}"
+                <input type="date" id="date" name="date" value="{{ form.get('date', '' if inv.date == 'N/A' else inv.date) if form is defined else ('' if inv.date == 'N/A' else inv.date) }}"
                        pattern="^\d{4}-\d{2}-\d{2}$|^\d{2}[/\-\.]\d{2}[/\-\.]\d{4}$"
                        class="input {% if errors and errors.date %}input-error{% endif %}"
                        placeholder="YYYY-MM-DD">
@@ -75,7 +75,7 @@
 
             <div class="field">
                 <label for="due_date">Due date</label>
-                <input type="date" id="due_date" name="due_date" value="{{ inv.due_date }}"
+                <input type="date" id="due_date" name="due_date" value="{{ form.get('due_date', '' if inv.due_date == 'N/A' else inv.due_date) if form is defined else ('' if inv.due_date == 'N/A' else inv.due_date) }}"
                        pattern="^\d{4}-\d{2}-\d{2}$|^\d{2}[/\-\.]\d{2}[/\-\.]\d{4}$"
                        class="input {% if errors and errors.due_date %}input-error{% endif %}"
                        placeholder="YYYY-MM-DD">
@@ -88,7 +88,7 @@
         <div class="form-grid-2">
             <div class="field">
                 <label for="customer_name">Customer name</label>
-                <input type="text" id="customer_name" name="customer_name" value="{{ inv.customer_name }}"
+                <input type="text" id="customer_name" name="customer_name" value="{{ form.get('customer_name', '' if inv.customer_name == 'N/A' else inv.customer_name) if form is defined else ('' if inv.customer_name == 'N/A' else inv.customer_name) }}"
                        minlength="2" maxlength="200"
                        class="input {% if errors and errors.customer_name %}input-error{% endif %}"
                        placeholder="Full name">
@@ -97,16 +97,16 @@
 
             <div class="field">
                 <label for="emailInput">Customer email</label>
-                <input type="email" name="customer_email" value="{{ inv.customer_email }}" id="emailInput"
-                       class="input {% if errors and errors.customer_email %}input-error{% endif %}"
+                <input type="email" name="customer_email" value="{{ form.get('customer_email', '' if inv.customer_email == 'N/A' else inv.customer_email) if form is defined else ('' if inv.customer_email == 'N/A' else inv.customer_email) }}" id="emailInput"
+                       class="input {% if errors and errors.customer_email %}input-error{% endif %}" aria-describedby="emailError"
                        placeholder="customer@company.com">
-                {% if errors and errors.customer_email %}<span class="error-text">{{ errors.customer_email }}</span>{% endif %}
+                {% if errors and errors.customer_email %}<span class="error-text" id="emailError">{{ errors.customer_email }}</span>{% endif %}
             </div>
         </div>
 
         <div class="field" style="margin-bottom: var(--space-5);">
             <label for="customer_address">Customer address</label>
-            <input type="text" id="customer_address" name="customer_address" value="{{ inv.customer_address }}"
+            <input type="text" id="customer_address" name="customer_address" value="{{ form.get('customer_address', '' if inv.customer_address == 'N/A' else inv.customer_address) if form is defined else ('' if inv.customer_address == 'N/A' else inv.customer_address) }}"
                    maxlength="500" class="input" placeholder="Street address, city, country">
         </div>
 
@@ -115,13 +115,13 @@
         <div class="form-grid-2" style="margin-bottom: var(--space-6);">
             <div class="field">
                 <label for="company_name">Company name</label>
-                <input type="text" id="company_name" name="company_name" value="{{ inv.company_name }}"
+                <input type="text" id="company_name" name="company_name" value="{{ form.get('company_name', '' if inv.company_name == 'N/A' else inv.company_name) if form is defined else ('' if inv.company_name == 'N/A' else inv.company_name) }}"
                        minlength="2" maxlength="200" class="input" placeholder="Company name">
             </div>
 
             <div class="field">
                 <label for="vat_id">VAT / tax ID</label>
-                <input type="text" id="vat_id" name="vat_id" value="{{ inv.vat_id }}"
+                <input type="text" id="vat_id" name="vat_id" value="{{ form.get('vat_id', '' if inv.vat_id == 'N/A' else inv.vat_id) if form is defined else ('' if inv.vat_id == 'N/A' else inv.vat_id) }}"
                        pattern="^[A-Z0-9\-]{5,20}$" maxlength="20"
                        class="input {% if errors and errors.vat_id %}input-error{% endif %}"
                        placeholder="e.g. GB123456789">
@@ -139,29 +139,12 @@
 
 {% block scripts %}
 <script>
-    document.getElementById('editForm').addEventListener('submit', function (e) {
-        var errors = [];
-
-        var amt = document.getElementById('amountInput').value.replace(/[,$€£]/g, '').trim();
-        if (amt && (isNaN(parseFloat(amt)) || parseFloat(amt) < 0)) {
-            errors.push('Amount must be a valid positive number');
-            document.getElementById('amountInput').classList.add('input-error');
-        }
-
-        var email = document.getElementById('emailInput').value.trim();
-        if (email && email !== 'N/A' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            errors.push('Invalid email format');
-            document.getElementById('emailInput').classList.add('input-error');
-        }
-
-        if (errors.length > 0) {
-            e.preventDefault();
-            alert('Validation errors:\n\n' + errors.join('\n'));
-        }
-    });
-
-    document.querySelectorAll('.input-error').forEach(function (el) {
-        el.addEventListener('input', function () { this.classList.remove('input-error'); });
+    var form = document.getElementById('editForm');
+    form.addEventListener('submit', function () {
+        var button = document.getElementById('submitBtn');
+        button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
+        button.innerHTML = '<i class="ri-loader-4-line" aria-hidden="true"></i> Saving…';
     });
 </script>
 {% endblock %}

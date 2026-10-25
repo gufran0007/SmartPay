@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 from pathlib import Path
 import re
 from uuid import uuid4
+from decimal import Decimal, InvalidOperation
 
 from app.models.database import SessionLocal, Invoice, InvoiceFeatures
 from app.services.auth import require_account, CurrentUser
@@ -485,18 +486,56 @@ async def update_invoice(
         if not invoice:
             return RedirectResponse("/view-data", status_code=303)
 
-        if invoice_number: invoice.invoice_number = sanitize(invoice_number)
-        if customer_name: invoice.customer_name = sanitize(customer_name)
-        if customer_email: invoice.customer_email = sanitize(customer_email)
-        if customer_address: invoice.customer_address = sanitize(customer_address)
-        if company_name: invoice.company_name = sanitize(company_name)
-        if amount: invoice.amount = sanitize(amount)
-        if currency: invoice.currency = sanitize(currency)
-        if date: invoice.date = sanitize(date)
-        if due_date: invoice.due_date = sanitize(due_date)
-        if vat_id: invoice.vat_id = sanitize(vat_id)
+        values = {
+            "invoice_number": invoice_number.strip(), "customer_name": customer_name.strip(),
+            "customer_email": customer_email.strip(), "customer_address": customer_address.strip(),
+            "company_name": company_name.strip(), "amount": amount.strip(),
+            "currency": currency.strip(), "date": date.strip(),
+            "due_date": due_date.strip(), "vat_id": vat_id.strip(),
+        }
+        errors = {}
+        if values["amount"] and values["amount"].upper() != "N/A":
+            normalized_amount = re.sub(r"[,$€£\s]", "", values["amount"])
+            try:
+                parsed_amount = Decimal(normalized_amount)
+                if not parsed_amount.is_finite() or parsed_amount < 0:
+                    raise InvalidOperation
+            except (InvalidOperation, ValueError):
+                errors["amount"] = "Enter a valid amount of zero or more."
+        if values["customer_email"] and values["customer_email"].upper() != "N/A" and not re.fullmatch(
+            r"[^\s@]+@[^\s@]+\.[^\s@]+", values["customer_email"]
+        ):
+            errors["customer_email"] = "Enter a valid email address."
+        for field in ("date", "due_date"):
+            value = values[field]
+            if value and value.upper() != "N/A" and _parse_date(value) is None:
+                errors[field] = "Enter a valid date."
+        if values["invoice_number"] and not re.fullmatch(r"[A-Za-z0-9_/-]{1,50}", values["invoice_number"]):
+            errors["invoice_number"] = "Use up to 50 letters, numbers, hyphens, underscores or slashes."
+        if values["vat_id"] and values["vat_id"].upper() != "N/A" and not re.fullmatch(
+            r"[A-Za-z0-9-]{5,20}", values["vat_id"]
+        ):
+            errors["vat_id"] = "Use 5–20 letters, numbers or hyphens."
 
-        # Re-check overdue after date change
+        if errors:
+            return templates.TemplateResponse("edit_invoice.html", {
+                "request": request, "current_user": current_user, "inv": invoice,
+                "invoice": invoice, "errors": errors, "form": values,
+            }, status_code=422)
+
+        limits = {"invoice_number": 50, "customer_name": 200, "customer_email": 254,
+                  "customer_address": 500, "company_name": 200, "currency": 3, "vat_id": 20}
+        for field, limit in limits.items():
+            values[field] = sanitize(values[field])[:limit] if values[field] else "N/A"
+        if values["amount"]:
+            values["amount"] = sanitize(values["amount"])
+        else:
+            values["amount"] = "N/A"
+        for field in ("date", "due_date"):
+            values[field] = sanitize(values[field]) if values[field] else "N/A"
+
+        for field, value in values.items():
+            setattr(invoice, field, value)
         invoice.status = _check_overdue(invoice)
         db.commit()
         return RedirectResponse(f"/view-invoice/{invoice_id}", status_code=303)
