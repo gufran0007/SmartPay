@@ -8,6 +8,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 import smtplib
+import re
 from datetime import date
 from app.controllers.invoice_controller import _parse_date
 from email.mime.text import MIMEText
@@ -69,6 +70,12 @@ async def send_reminder(invoice_id: int, customer_email: str = Form(...), curren
 
         if invoice.status == "paid":
             return RedirectResponse(f"/view-invoice/{invoice_id}?error=Paid+invoices+do+not+need+reminders", status_code=303)
+        saved_email = (invoice.customer_email or "").strip()
+        recipient = (customer_email or "").strip()
+        if (not saved_email or saved_email.upper() == "N/A"
+                or not re.fullmatch(r"[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+", saved_email)
+                or recipient.casefold() != saved_email.casefold()):
+            return RedirectResponse(f"/view-invoice/{invoice_id}?error=Update+the+invoice+email+before+sending", status_code=303)
         if not GMAIL_USER or not GMAIL_APP_PASSWORD:
             return RedirectResponse(f"/view-invoice/{invoice_id}?error=Email+reminders+are+not+configured", status_code=303)
         due = _parse_date(invoice.due_date)
@@ -84,13 +91,12 @@ async def send_reminder(invoice_id: int, customer_email: str = Form(...), curren
         msg = MIMEText(body)
         msg['Subject'] = subject
         msg['From'] = GMAIL_USER
-        msg['To'] = customer_email
+        msg['To'] = saved_email
 
-        server = smtplib.SMTP("smtp.gmail.com", 587, timeout=15)
-        server.starttls()
-        server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
-        server.send_message(msg)
-        server.quit()
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
+            server.starttls()
+            server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+            server.send_message(msg)
 
         return RedirectResponse(f"/view-invoice/{invoice_id}?success=Reminder+sent", status_code=303)
     except Exception as e:

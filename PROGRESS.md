@@ -30,3 +30,9 @@ Daily workflow: inspect status first, preserve unrelated work, choose one useful
 - Invalid submissions show field-specific errors and retain entered values; empty optional fields can be cleared.
 - Render unavailable N/A values as blank inputs so browser validation does not reject existing records during a normal save.
 - Validation: full suite 229 passed, 1 skipped (optional SDK check); browser verified invalid amount is rejected inline and retained. No email sent. Existing .env.example deletion preserved.
+
+## 2026-10-26 - Keep reminder recipients tied to invoice records
+
+- The reminder route now checks that its submitted recipient matches the invoice's saved, valid customer email; tampered addresses are rejected before SMTP opens.
+- The message uses the saved address and SMTP connections close through a context manager.
+- Validation: full suite 231 passed, 1 skipped (optional SDK); mocked SMTP tests confirmed recipient enforcement and connection lifecycle. Browser verified local registration and app access only; no real reminder was sent. Existing .env.example deletion preserved.
