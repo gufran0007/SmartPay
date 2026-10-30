@@ -36,3 +36,11 @@ Daily workflow: inspect status first, preserve unrelated work, choose one useful
 - The reminder route now checks that its submitted recipient matches the invoice's saved, valid customer email; tampered addresses are rejected before SMTP opens.
 - The message uses the saved address and SMTP connections close through a context manager.
 - Validation: full suite 231 passed, 1 skipped (optional SDK); mocked SMTP tests confirmed recipient enforcement and connection lifecycle. Browser verified local registration and app access only; no real reminder was sent. Existing .env.example deletion preserved.
+
+## 2026-10-30 - Validate legacy customer CSVs before storing
+
+- Customer history uploads now reject empty/malformed files, files without a recognized customer-name header, and files with no usable customer names before they are written.
+- Normalize header case and spacing so common title-cased CSV headers load consistently; successful imports are read once on later requests.
+- Replaced raw parser/save exception details in redirect URLs with safe, actionable messages.
+- Reset account upload folders within the isolated test uploads directory between tests, preventing reused account IDs from contaminating other cases.
+- Validation: full suite 235 passed, 1 skipped (optional SDK check). Browser confirmed the CSV upload form and help format in a fresh local account; no file was uploaded. Existing .env.example deletion preserved.

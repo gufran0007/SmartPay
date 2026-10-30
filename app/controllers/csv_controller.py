@@ -3,6 +3,7 @@ CSV Controller for Smart Pay
 Handles CSV file uploads for customer payment history
 """
 from fastapi import APIRouter, Depends, Request, UploadFile, File
+import io
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 import pandas as pd
@@ -51,28 +52,45 @@ def upload_csv_page(request: Request, current_user: CurrentUser = Depends(requir
 
 @router.post("/upload-csv")
 async def upload_csv(request: Request, file: UploadFile = File(...), current_user: CurrentUser = Depends(require_account)):
-    """Handle CSV file upload"""
-    if not file.filename.lower().endswith('.csv'):
-        return RedirectResponse("/upload-csv?error=Invalid+file+type.+Only+CSV+files+allowed.", status_code=303)
+    """Validate customer history before retaining it in the account upload folder."""
+    if not file.filename or not file.filename.lower().endswith('.csv'):
+        return RedirectResponse("/upload-csv?error=Choose+a+CSV+file.", status_code=303)
 
-    content = await file.read()
+    content = await file.read(10 * 1024 * 1024 + 1)
     if len(content) > 10 * 1024 * 1024:
         return RedirectResponse("/upload-csv?error=File+too+large.+Maximum+size+is+10MB.", status_code=303)
 
     try:
+        df = pd.read_csv(io.BytesIO(content))
+    except pd.errors.EmptyDataError:
+        return RedirectResponse("/upload-csv?error=The+CSV+file+is+empty.", status_code=303)
+    except (pd.errors.ParserError, UnicodeDecodeError):
+        return RedirectResponse("/upload-csv?error=Could+not+read+this+CSV.+Check+its+encoding+and+row+format.", status_code=303)
+
+    df.columns = [str(column).strip().lower() for column in df.columns]
+    customer_columns = {
+        "customer_name", "customer name", "customer", "client_name", "client name",
+        "client", "name", "company name",
+    }
+    name_column = next((column for column in df.columns if column in customer_columns), None)
+    if name_column is None:
+        return RedirectResponse(
+            "/upload-csv?error=Add+a+customer_name,+customer+name,+client+or+name+column.", status_code=303
+        )
+
+    usable_names = df[name_column].dropna().astype(str).str.strip()
+    usable_names = usable_names[~usable_names.str.casefold().isin({"", "n/a", "nan", "none", "unknown"})]
+    if usable_names.empty:
+        return RedirectResponse("/upload-csv?error=No+usable+customer+names+were+found+in+the+CSV.", status_code=303)
+
+    try:
         account_dir = get_account_upload_dir(current_user.account_id)
         file_path = account_dir / (uuid4().hex + "_" + safe_filename(file.filename))
-        file_path.write_bytes(content)
-
-        df = pd.read_csv(file_path)
-        csv_service = CSVService(upload_dir=account_dir)
-        csv_service.load_customer_data(df, file.filename)
-
-        return RedirectResponse("/dashboard?success=CSV+data+loaded+successfully", status_code=303)
-
-    except Exception as e:
-        log_exception(request, where="upload_csv", filename=file.filename)
-        return RedirectResponse(f"/upload-csv?error=Failed+to+process+CSV:+{str(e)[:50]}", status_code=303)
+        df.to_csv(file_path, index=False)
+        return RedirectResponse("/dashboard?success=Customer+payment+history+imported.", status_code=303)
+    except Exception:
+        log_exception(request, where="upload_csv", filename=safe_filename(file.filename))
+        return RedirectResponse("/upload-csv?error=Could+not+save+the+CSV.+Please+try+again.", status_code=303)
 
 
 @router.get("/customers")

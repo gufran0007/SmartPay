@@ -72,15 +72,15 @@ def test_logged_exception_includes_account_id(reset_db, monkeypatch, caplog):
 
 def test_upload_csv_failure_is_logged_before_redirect(reset_db, monkeypatch, caplog):
     import io
-    from app.services import csv_service as csv_service_module
+    import pandas as pd
 
     client = TestClient(app, raise_server_exceptions=False)
     _register_and_login(client, email="csvfail@example.com")
 
-    def _boom(self, df, filename):
+    def _boom(self, *args, **kwargs):
         raise RuntimeError("simulated CSV processing failure")
 
-    monkeypatch.setattr(csv_service_module.CSVService, "load_customer_data", _boom)
+    monkeypatch.setattr(pd.DataFrame, "to_csv", _boom)
 
     files = {"file": ("history.csv", io.BytesIO(b"customer_name,amount\nAcme,10\n"), "text/csv")}
     with caplog.at_level(logging.INFO):

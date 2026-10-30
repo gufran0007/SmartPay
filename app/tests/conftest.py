@@ -27,13 +27,17 @@ def reset_db():
     test would otherwise silently load into a same-numbered account in a
     later, unrelated test.
     """
+    import shutil
     from app.models.database import Base, engine
-    from app.services.paths import MODELS_DIR
+    from app.services.paths import MODELS_DIR, UPLOAD_DIR
 
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     for f in MODELS_DIR.glob("payment_predictor_account_*.pkl"):
         f.unlink()
+    for account_dir in UPLOAD_DIR.glob("account_*"):
+        if account_dir.is_dir() and account_dir.resolve().parent == UPLOAD_DIR.resolve():
+            shutil.rmtree(account_dir)
     yield
 
 
