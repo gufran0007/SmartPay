@@ -130,6 +130,24 @@ class TestCustomerMatching:
 
 
 class TestCSVLoading:
+    def test_unpaid_statuses_are_not_counted_as_paid(self, tmp_path):
+        import pandas as pd
+        from app.services.csv_service import CSVService
+
+        statuses = ['unpaid', 'not paid', 'overdue', 'pending', 'partially paid',
+                    'disputed', 'paid', 'paid on time', 'late', 'paid late']
+        pd.DataFrame({
+            'customer_name': ['Acme'] * len(statuses),
+            'payment_status': statuses,
+            'amount': [10] * len(statuses),
+        }).to_csv(tmp_path / 'history.csv', index=False)
+
+        customer = CSVService(tmp_path).find_customer_match('Acme')
+        assert customer['total_invoices'] == len(statuses)
+        assert customer['not_paid'] == 6
+        assert customer['paid_on_time'] == 2
+        assert customer['paid_late'] == 2
+
     def test_unique_customers(self, sample_csv):
         assert sample_csv['Customer_Name'].nunique() == 3
 

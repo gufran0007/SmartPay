@@ -44,3 +44,9 @@ Daily workflow: inspect status first, preserve unrelated work, choose one useful
 - Replaced raw parser/save exception details in redirect URLs with safe, actionable messages.
 - Reset account upload folders within the isolated test uploads directory between tests, preventing reused account IDs from contaminating other cases.
 - Validation: full suite 235 passed, 1 skipped (optional SDK check). Browser confirmed the CSV upload form and help format in a fresh local account; no file was uploaded. Existing .env.example deletion preserved.
+
+## 2026-10-31 - Correct unpaid payment-history classification
+
+- Fixed legacy customer-history parsing to check unpaid, overdue, pending, partially paid and disputed states before matching paid statuses. "Unpaid" can no longer be counted as paid on time.
+- Recognize late and paid-late states; recognize common explicit on-time states. Keep unknown status rows in the invoice total without falsely marking them paid.
+- Validation: full suite 236 passed, 1 skipped (optional SDK). Browser checked an isolated customer with one unpaid and one paid record; list showed one on-time payment and lower reliability. No email sent. Existing .env.example deletion preserved.

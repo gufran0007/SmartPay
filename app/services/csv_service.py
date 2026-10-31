@@ -91,16 +91,19 @@ class CSVService:
             cust = self.customer_history[name]
             cust['total_invoices'] += 1
 
-            status = str(row.get('payment_status', '')).lower()
+            status = str(row.get('payment_status', '')).strip().casefold().replace('_', ' ')
             cust['total_amount'] += self._extract_amount(row)
 
-            if 'paid' in status:
-                if 'late' in status:
-                    cust['paid_late'] += 1
-                else:
-                    cust['paid_on_time'] += 1
-            elif 'unpaid' in status or 'overdue' in status:
+            # Check unpaid states first: "unpaid" contains the word "paid".
+            if any(term in status for term in (
+                'unpaid', 'not paid', 'overdue', 'pending', 'outstanding',
+                'partially paid', 'disputed',
+            )):
                 cust['not_paid'] += 1
+            elif 'late' in status:
+                cust['paid_late'] += 1
+            elif status in ('paid', 'paid on time', 'on time', 'paid in full', 'settled'):
+                cust['paid_on_time'] += 1
 
         print(f"Loaded {len(df)} customer history records from {source}")
 
