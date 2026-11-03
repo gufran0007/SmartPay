@@ -22,3 +22,19 @@ def test_missing_customer_returns_404(app_client):
     client = app_client()
     register_and_login(client, 'missing-details@example.com')
     assert client.get('/customer-insights/NoSuchCustomer').status_code == 404
+
+
+def test_unassessed_customers_sort_after_payment_history(app_client):
+    client = app_client()
+    register_and_login(client, 'customer-order@example.com')
+
+    invoice_id = upload_invoice(client)
+    client.post(f'/update-invoice/{invoice_id}', data={'customer_name': 'Unassessed Co'})
+    client.post('/upload-csv', files={
+        'file': ('history.csv', b'name,payment_status\nRisky Co,overdue\n', 'text/csv')
+    })
+
+    customers = client.get('/customers').context['customers']
+    assert [customer['name'] for customer in customers] == ['Risky Co', 'Unassessed Co']
+    assert customers[0]['risk_level'] == 'High'
+    assert customers[1]['risk_level'] == 'Not assessed'

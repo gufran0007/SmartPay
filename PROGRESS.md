@@ -50,3 +50,9 @@ Daily workflow: inspect status first, preserve unrelated work, choose one useful
 - Fixed legacy customer-history parsing to check unpaid, overdue, pending, partially paid and disputed states before matching paid statuses. "Unpaid" can no longer be counted as paid on time.
 - Recognize late and paid-late states; recognize common explicit on-time states. Keep unknown status rows in the invoice total without falsely marking them paid.
 - Validation: full suite 236 passed, 1 skipped (optional SDK). Browser checked an isolated customer with one unpaid and one paid record; list showed one on-time payment and lower reliability. No email sent. Existing .env.example deletion preserved.
+
+## 2026-11-03 - Keep unassessed customers after assessed customers
+
+- Customer lists now sort assessed customers by reliability first and put customers without payment history afterward; the neutral placeholder score no longer affects visible ranking.
+- Keep the ordering deterministic for equal scores by sorting names case-insensitively.
+- Validation: full suite 237 passed, 1 skipped (optional SDK check). Browser verified a 10% High-risk customer appears before a database-only customer labelled Not assessed. Preview used a scratch database/uploads directory; no email sent. Existing .env.example deletion preserved.

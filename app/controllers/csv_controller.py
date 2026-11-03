@@ -185,11 +185,12 @@ def customers_page(request: Request, current_user: CurrentUser = Depends(require
                     "total_amount_db": float(stats["total_amount_db"]),
                 }
 
-        # Sort by reliability (highest first)
+        # Keep customers without payment history after assessed customers.
+        # Their neutral placeholder score is only for internal compatibility,
+        # so it must not make them appear to outrank or tie assessed accounts.
         customers_list = sorted(
             all_customers.values(),
-            key=lambda x: x.get("payment_reliability", 0),
-            reverse=True
+            key=lambda x: (not x.get("has_csv_data", False), -x.get("payment_reliability", 0), x["name"].casefold())
         )
 
         return render(
