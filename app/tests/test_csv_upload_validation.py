@@ -39,6 +39,7 @@ def test_valid_csv_normalizes_headers_and_loads_once(app_client):
     assert customer['total_invoices'] == 1
     assert customer['paid_on_time'] == 1
     assert customer['total_amount'] == 125.0
+    assert service.get_stats()['total_records'] == 1
 
 
 def test_empty_csv_returns_helpful_error(app_client):

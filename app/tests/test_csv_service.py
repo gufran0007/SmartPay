@@ -130,6 +130,19 @@ class TestCustomerMatching:
 
 
 class TestCSVLoading:
+    def test_history_records_are_included_in_stats(self, tmp_path):
+        import pandas as pd
+        from app.services.csv_service import CSVService
+
+        pd.DataFrame({
+            'customer_name': ['Acme', 'Acme', 'North Studio'],
+            'payment_status': ['paid', 'late', 'overdue'],
+        }).to_csv(tmp_path / 'history.csv', index=False)
+
+        stats = CSVService(tmp_path).get_stats()
+        assert stats['total_customers'] == 2
+        assert stats['total_records'] == 3
+
     def test_unpaid_statuses_are_not_counted_as_paid(self, tmp_path):
         import pandas as pd
         from app.services.csv_service import CSVService

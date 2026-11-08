@@ -63,3 +63,9 @@ Daily workflow: inspect status first, preserve unrelated work, choose one useful
 - Added `SESSION_HTTPS_ONLY` override for deployments with different proxy or TLS arrangements, and reject invalid override values at startup.
 - Documented the setting and covered production, local, override, and invalid-value behavior.
 - Validation: full suite 241 passed, 1 skipped (optional SDK check). Browser verified local registration and sign-in over HTTP. Preview used a scratch database; no reminders or real email sent. Existing .env.example deletion preserved.
+
+## 2026-11-08 - Count uploaded customer history records correctly
+
+- CSV status now counts invoice rows across all loaded customer history, instead of only counting rows in the separate labeled-dataset format.
+- Updated the help text to accurately describe how account CSV history is checked.
+- Validation: full suite 242 passed, 1 skipped (optional SDK check); focused CSV tests 30 passed. Browser verified a three-record sample displayed 2 customers and 3 records. Preview used a scratch account/database; no reminder was sent. Existing .env.example deletion preserved.

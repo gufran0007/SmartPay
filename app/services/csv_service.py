@@ -329,7 +329,7 @@ class CSVService:
         rels = [self.calculate_payment_reliability(c) for c in self.customer_history.values()]
         return {
             'total_customers': len(self.customer_history),
-            'total_records': len(self.dataset_records),
+            'total_records': sum(c.get('total_invoices', 0) for c in self.customer_history.values()),
             'high_risk_count': len(self.get_high_risk_customers()),
             'avg_reliability': round(np.mean(rels), 2) if rels else 0,
             'total_amount': round(sum(c.get('total_amount', 0) for c in self.customer_history.values()), 2)
