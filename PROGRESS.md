@@ -56,3 +56,10 @@ Daily workflow: inspect status first, preserve unrelated work, choose one useful
 - Customer lists now sort assessed customers by reliability first and put customers without payment history afterward; the neutral placeholder score no longer affects visible ranking.
 - Keep the ordering deterministic for equal scores by sorting names case-insensitively.
 - Validation: full suite 237 passed, 1 skipped (optional SDK check). Browser verified a 10% High-risk customer appears before a database-only customer labelled Not assessed. Preview used a scratch database/uploads directory; no email sent. Existing .env.example deletion preserved.
+
+## 2026-11-08 - Secure session cookies in production
+
+- Docker deployments now default to HTTPS-only login cookies; local development remains compatible with HTTP.
+- Added `SESSION_HTTPS_ONLY` override for deployments with different proxy or TLS arrangements, and reject invalid override values at startup.
+- Documented the setting and covered production, local, override, and invalid-value behavior.
+- Validation: full suite 241 passed, 1 skipped (optional SDK check). Browser verified local registration and sign-in over HTTP. Preview used a scratch database; no reminders or real email sent. Existing .env.example deletion preserved.

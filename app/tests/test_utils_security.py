@@ -52,6 +52,35 @@ class TestFileTypes:
 
 
 class TestSession:
+    def test_session_cookie_is_secure_in_production(self, monkeypatch):
+        from app.services.security_settings import session_cookie_https_only
+
+        monkeypatch.delenv("SESSION_HTTPS_ONLY", raising=False)
+        monkeypatch.setenv("APP_ENV", "production")
+        assert session_cookie_https_only() is True
+
+    def test_session_cookie_is_http_compatible_for_local_development(self, monkeypatch):
+        from app.services.security_settings import session_cookie_https_only
+
+        monkeypatch.delenv("SESSION_HTTPS_ONLY", raising=False)
+        monkeypatch.delenv("APP_ENV", raising=False)
+        assert session_cookie_https_only() is False
+
+    def test_session_cookie_setting_can_be_overridden(self, monkeypatch):
+        from app.services.security_settings import session_cookie_https_only
+
+        monkeypatch.setenv("APP_ENV", "production")
+        monkeypatch.setenv("SESSION_HTTPS_ONLY", "false")
+        assert session_cookie_https_only() is False
+
+    def test_invalid_session_cookie_override_fails_clearly(self, monkeypatch):
+        import pytest
+        from app.services.security_settings import session_cookie_https_only
+
+        monkeypatch.setenv("SESSION_HTTPS_ONLY", "sometimes")
+        with pytest.raises(ValueError, match="SESSION_HTTPS_ONLY must be true or false"):
+            session_cookie_https_only()
+
     def test_logged_in(self):
         session = {"user_id": 1, "email": "test@test.com"}
         assert session.get("user_id") is not None

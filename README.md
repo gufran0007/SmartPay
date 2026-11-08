@@ -241,6 +241,9 @@ ANTHROPIC_API_KEY=your-anthropic-api-key
 
 `SESSION_SECRET` is used to sign session cookies (the app refuses to start without it — no
 insecure default). Gmail credentials are only needed for the email reminder feature.
+The Docker image runs with `APP_ENV=production`, which marks session cookies as HTTPS-only.
+For a different deployment, set `SESSION_HTTPS_ONLY=true` or `false` to override that
+setting. Local development defaults to HTTP-compatible cookies.
 `ANTHROPIC_API_KEY` is only needed for the CSV/Excel import's column-mapping proposal
 (`/import`) — never sent real customer data beyond headers and a small row sample, and
 never used by the test suite.

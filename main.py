@@ -17,6 +17,7 @@ from app.controllers import auth_controller, invoice_controller, prediction_cont
 from app.models.database import SessionLocal, Invoice
 from app.services.auth import require_account, RequireLoginRedirect, CurrentUser, AccountScopeMiddleware
 from app.services.error_logging import log_exception
+from app.services.security_settings import session_cookie_https_only
 
 app = FastAPI(title="Smart Pay Invoice System", version="2.0.0")
 from starlette.middleware.sessions import SessionMiddleware
@@ -32,7 +33,7 @@ app.add_middleware(
     secret_key=os.environ["SESSION_SECRET"],
     max_age=1800,
     same_site="lax",
-    https_only=False,
+    https_only=session_cookie_https_only(),
 )
 
 static_path = Path("app/static")

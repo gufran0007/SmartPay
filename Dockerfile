@@ -1,5 +1,7 @@
 FROM python:3.12-slim
 
+ENV APP_ENV=production
+
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
